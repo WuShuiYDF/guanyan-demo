@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="assets/app.css?v=10">
+<title>研屿 - 舆情分析</title>
+<style>
+:root {
+  --bg-primary: var(--bg);
+  --bg-glass: rgba(var(--line-rgb), 0.06);
+  --bg-glass-hover: rgba(var(--line-rgb), 0.10);
+  --bg-glass-strong: rgba(var(--line-rgb), 0.08);
+
+  --ink-warm: rgba(var(--brand-rgb), 0.88);
+  --ink-warm-full: rgba(var(--brand-rgb), 1);
+  --ink-soft: rgba(var(--line-rgb), 0.48);
+  --ink-muted: rgba(var(--line-rgb), 0.32);
+  --ink-faint: rgba(var(--line-rgb), 0.18);
+
+  --border-glass: rgba(var(--line-rgb), 0.10);
+  --border-glass-strong: rgba(var(--line-rgb), 0.16);
+
+  --font-display: ui-serif, Georgia, Cambria, "Times New Roman", Times, "Noto Serif SC", serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.35rem;
+  --radius-full: 9999px;
+
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  min-height: 100%;
+  background: var(--bg-primary);
+  font-family: var(--font-sans);
+  color: var(--ink-warm);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-left: 56px;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255, 200, 100, 0.02) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Navigation ── */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: 8px 16px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-full);
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.back:hover {
+  color: var(--ink-warm);
+  border-color: var(--border-glass-strong);
+  background: var(--bg-glass-hover);
+}
+
+.back svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nav-brand {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+}
+
+/* ── Header ── */
+.header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.header-icon {
+  width: 52px;
+  height: 52px;
+  background: var(--bg-glass-strong);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass-strong);
+  border-radius: var(--radius-xl);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.header-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--ink-warm-full);
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--ink-warm-full);
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.header-desc {
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.8;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* ── Architecture Note ── */
+.arch {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 48px;
+  flex-wrap: wrap;
+}
+
+.arch-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.arch-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.arch-dot--green { background: rgba(74, 222, 128, 0.7); }
+.arch-dot--yellow { background: rgba(250, 204, 21, 0.7); }
+.arch-dot--blue { background: rgba(96, 165, 250, 0.7); }
+
+/* ── Cards Grid ── */
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  flex: 1;
+}
+
+.card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  transition:
+    background var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.card:hover {
+  background: var(--bg-glass-hover);
+  border-color: var(--border-glass-strong);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.card-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  transition: border-color var(--duration-normal) var(--ease-out);
+}
+
+.card:hover .card-icon {
+  border-color: var(--border-glass-strong);
+}
+
+.card-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--ink-warm);
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-warm-full);
+  margin-bottom: 8px;
+  letter-spacing: 0.01em;
+}
+
+.card-desc {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.7;
+  flex: 1;
+  margin-bottom: 16px;
+}
+
+.card-tag {
+  display: inline-block;
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border-glass);
+  color: var(--ink-muted);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.02em;
+}
+
+/* ── Flow indicator ── */
+.flow {
+  text-align: center;
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border-glass);
+}
+
+.flow-label {
+  font-size: 12px;
+  color: var(--ink-faint);
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+.flow-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.flow-step {
+  font-size: 12px;
+  color: var(--ink-muted);
+  padding: 4px 12px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-full);
+}
+
+.flow-arrow {
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .container { padding: 24px 16px; }
+  .cards { grid-template-columns: 1fr; }
+  h1 { font-size: 22px; }
+  .arch { flex-direction: column; align-items: center; }
+}
+
+/* ── Left Sidebar ── */
+.sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0; z-index: 200;
+  width: 56px;
+  background: var(--nav-bg);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-right: 1px solid rgba(var(--line-rgb),0.06);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px 0; gap: 4px;
+}
+.sidebar-logo {
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; margin-bottom: 12px;
+  transition: opacity 0.2s;
+}
+.sidebar-logo:hover { opacity: 0.8; }
+.sidebar-logo img {
+  width: 40px; height: 40px; object-fit: cover; border-radius: 10px;
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.sidebar-item {
+  position: relative;
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(var(--brand-rgb),0.40); text-decoration: none;
+  transition: all 0.2s;
+}
+.sidebar-item:hover { background: rgba(var(--brand-rgb),0.08); color: rgba(var(--brand-rgb),0.75); }
+.sidebar-item.active {
+  background: rgba(var(--brand-rgb),0.12); color: rgba(var(--brand-rgb),0.88);
+}
+.sidebar-item.active::before {
+  content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 20px; border-radius: 2px;
+  background: rgba(var(--brand-rgb),0.60);
+}
+.sidebar-item svg { width: 20px; height: 20px; }
+.sidebar-tooltip {
+  position: absolute; left: 52px; top: 50%; transform: translateY(-50%);
+  background: rgba(var(--panel-rgb),0.95); border: 1px solid rgba(var(--brand-rgb),0.12);
+  border-radius: 6px; padding: 4px 10px; font-size: 12px;
+  color: rgba(var(--brand-rgb),0.75); white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.sidebar-item:hover .sidebar-tooltip { opacity: 1; }
+
+/* ── DEMO MODE Badge ── */
+.demo-badge {
+  position: fixed; bottom: 16px; right: 16px; z-index: 99999;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1a1a1a; background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+  pointer-events: none; user-select: none;
+  animation: demoBadgePulse 3s ease-in-out infinite;
+}
+@keyframes demoBadgePulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@media (max-width: 767px) {
+  .demo-badge { bottom: 72px; right: 10px; font-size: 10px; padding: 5px 10px; }
+}
+
+</style>
+</head>
+<body>
+<div class="demo-badge">DEMO MODE</div>
+
+<nav class="sidebar">
+  <a class="sidebar-logo" href="index.html" title="主页"><img src="assets/favicon.png" alt="研屿"></a>
+  <div class="sidebar-nav">
+    <a class="sidebar-item" href="dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="sidebar-tooltip">舆情分析</span>
+    </a>
+    <a class="sidebar-item" href="study-room.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      <span class="sidebar-tooltip">沉浸自习室</span>
+    </a>
+    <a class="sidebar-item" href="agent-chat.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="sidebar-tooltip">Agent 对话</span>
+    </a>
+    <a class="sidebar-item" href="decision-cards.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="9.5" x2="22" y2="9.5"/><line x1="7" y1="15" x2="7.01" y2="15"/></svg>
+      <span class="sidebar-tooltip">决策卡片</span>
+    </a>
+    <a class="sidebar-item" href="report.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span class="sidebar-tooltip">分析报告</span>
+    </a>
+  </div>
+</nav>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24">
+        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+    </div>
+    <h1>舆情分析系统</h1>
+    <div class="header-desc">
+      多 Agent 协作架构，从数据采集到决策建议的全链路分析。<br>
+      穿透信息噪声，看见真实的考研竞争格局。
+    </div>
+  </div>
+
+  <!-- Architecture legend -->
+  <div class="arch">
+    <div class="arch-item">
+      <span class="arch-dot arch-dot--green"></span>
+      T1 官方数据
+    </div>
+    <div class="arch-item">
+      <span class="arch-dot arch-dot--yellow"></span>
+      T2 半官方数据
+    </div>
+    <div class="arch-item">
+      <span class="arch-dot arch-dot--blue"></span>
+      T3 舆情推算
+    </div>
+  </div>
+
+  <!-- Demo Pages -->
+  <div class="cards">
+    <!-- Dashboard -->
+    <a class="card" href="dashboard.html">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+      </div>
+      <div class="card-title">宏观数据面板</div>
+      <div class="card-desc">全国考研热度大盘、院校/专业排行榜、热度地图、跨考流向图、就业舆情趋势。</div>
+      <div class="card-tag">L1 全国视角 · ECharts</div>
+    </a>
+
+    <!-- Agent Chat -->
+    <a class="card" href="agent-chat.html">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="card-title">Agent 对话界面</div>
+      <div class="card-desc">核心交互页面。Agent 思考过程可折叠、工具调用实时展示、决策卡片内嵌、三方辩论可视化。</div>
+      <div class="card-tag">核心页面 · 对话式交互</div>
+    </a>
+
+    <!-- Decision Cards -->
+    <a class="card" href="decision-cards.html">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+          <polyline points="2 17 12 22 22 17"/>
+          <polyline points="2 12 12 17 22 12"/>
+        </svg>
+      </div>
+      <div class="card-title">决策卡片</div>
+      <div class="card-desc">候选院校x专业的对比卡片，含热度/劝退/保研挤压/信息差等指标、数据可信度标签。</div>
+      <div class="card-tag">L4 交叉分析 · 多校对比</div>
+    </a>
+
+    <!-- Report -->
+    <a class="card" href="report.html">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+      </div>
+      <div class="card-title">完整分析报告</div>
+      <div class="card-desc">Agent 生成的个性化深度报告，含画像摘要、官方数据、舆情分析、竞争评估、趋势预测等9个章节。</div>
+      <div class="card-tag">可导出 · HTML/PDF</div>
+    </a>
+  </div>
+
+  <!-- Analysis Flow -->
+  <div class="flow">
+    <div class="flow-label">分析流程</div>
+    <div class="flow-steps">
+      <span class="flow-step">用户提问</span>
+      <span class="flow-arrow">&rarr;</span>
+      <span class="flow-step">规划 Agent</span>
+      <span class="flow-arrow">&rarr;</span>
+      <span class="flow-step">分析 Agent</span>
+      <span class="flow-arrow">&rarr;</span>
+      <span class="flow-step">三方辩论</span>
+      <span class="flow-arrow">&rarr;</span>
+      <span class="flow-step">决策卡片</span>
+      <span class="flow-arrow">&rarr;</span>
+      <span class="flow-step">深度报告</span>
+    </div>
+  </div>
+</div>
+<script src="mock-api.js"></script>
+<script src="assets/app.js?v=18"></script>
+</body>
+</html>

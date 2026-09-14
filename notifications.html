@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>通知中心 | 研屿</title>
+<link rel="stylesheet" href="assets/app.css?v=10">
+<style>
+.notif-list { display: flex; flex-direction: column; gap: 10px; }
+.notif-item {
+  display: flex; gap: 14px; padding: 14px 16px; border-radius: 12px;
+  background: rgba(var(--line-rgb), 0.04);
+  border: 1px solid rgba(var(--line-rgb), 0.08);
+  transition: all 0.2s;
+}
+.notif-item.unread { border-color: rgba(212, 168, 83, 0.35); background: rgba(212, 168, 83, 0.05); }
+.notif-item { will-change: transform; }
+.notif-item.swipe-out {
+  transform: translateX(115%); opacity: 0;
+  padding-top: 0 !important; padding-bottom: 0 !important;
+  max-height: 0 !important; margin-bottom: 0 !important; overflow: hidden;
+  border-width: 0;
+  transition:
+    transform .38s cubic-bezier(.55, 0, .8, .4),
+    opacity .28s ease,
+    max-height .38s ease .1s,
+    margin-bottom .38s ease .1s,
+    padding-top .38s ease .1s,
+    padding-bottom .38s ease .1s,
+    border-width .38s ease .1s;
+}
+.notif-item.swipe-out .notif-icon, .notif-item.swipe-out .notif-body { opacity: 0; transition: opacity .18s ease; }
+.notif-icon {
+  flex: none; width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(var(--brand-rgb), 0.08); color: rgba(var(--brand-rgb), 0.65);
+}
+.notif-icon svg { width: 18px; height: 18px; }
+.notif-body { flex: 1; min-width: 0; }
+.notif-title { font-size: 14px; font-weight: 600; color: rgba(var(--brand-rgb), 0.92); }
+.notif-item.unread .notif-title::after {
+  content: '未读'; margin-left: 8px; font-size: 10px; font-weight: 500; padding: 1px 6px;
+  border-radius: 5px; background: rgba(212, 168, 83, 0.2); color: rgba(212, 168, 83, 0.9);
+  vertical-align: 2px;
+}
+.notif-content { margin-top: 4px; font-size: 12.5px; line-height: 1.7; color: rgba(var(--brand-rgb), 0.55); }
+.notif-time { margin-top: 6px; font-size: 11.5px; color: rgba(var(--brand-rgb), 0.32); }
+.notif-actions { flex: none; align-self: center; }
+.notif-empty { padding: 60px 0; text-align: center; color: rgba(var(--brand-rgb), 0.35); font-size: 13.5px; }
+
+/* ── DEMO MODE Badge ── */
+.demo-badge {
+  position: fixed; bottom: 16px; right: 16px; z-index: 99999;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1a1a1a; background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+  pointer-events: none; user-select: none;
+  animation: demoBadgePulse 3s ease-in-out infinite;
+}
+@keyframes demoBadgePulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@media (max-width: 767px) {
+  .demo-badge { bottom: 72px; right: 10px; font-size: 10px; padding: 5px 10px; }
+}
+
+</style>
+</head>
+<body>
+<div class="demo-badge">DEMO MODE</div>
+<div data-nav="notifications"></div>
+<div data-header></div>
+
+<div class="container" style="margin-left:56px;padding:24px 28px 60px">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+    <div style="flex:1">
+      <div class="page-title">通知中心</div>
+      <div class="page-desc">关注院校的热度变化、政策提醒与系统消息</div>
+    </div>
+    <button class="ph-btn" onclick="markAllRead()">全部标为已读</button>
+  </div>
+  <div class="notif-list" id="notifList"><div class="notif-empty">加载中…</div></div>
+</div>
+
+<script src="mock-api.js"></script>
+<script src="assets/app.js?v=18"></script>
+<script>
+document.querySelector('[data-nav]').outerHTML = navSidebar('notifications');
+mountHeader('研屿 · 通知中心');
+
+const TYPE_ICON = {
+  heat_change: '<path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-6"/>',
+  policy: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  deadline: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  reminder: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+};
+const TYPE_NAME = { heat_change: '热度变化', policy: '政策', deadline: '截止提醒', reminder: '提醒' };
+
+function fmtTime(s) {
+  if (!s) return '';
+  const d = new Date(s), now = new Date();
+  const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  if (d.toDateString() === now.toDateString()) return `今天 ${hm}`;
+  const days = Math.round((now - d) / 86400000);
+  if (days === 1) return `昨天 ${hm}`;
+  if (days < 7) return `${days} 天前`;
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+async function loadNotifs() {
+  try {
+    const data = await api('/notifications');
+    const items = data.items || [];
+    const box = document.getElementById('notifList');
+    if (!items.length) {
+      box.innerHTML = '<div class="notif-empty">还没有通知。关注院校后，热度变化和政策提醒会出现在这里。</div>';
+      return;
+    }
+    box.innerHTML = items.map(n => `
+      <div class="notif-item ${n.is_read ? '' : 'unread'}">
+        <div class="notif-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${TYPE_ICON[n.type] || TYPE_ICON.reminder}</svg></div>
+        <div class="notif-body">
+          <div class="notif-title">${esc(n.title)}<span style="margin-left:8px;font-size:11px;color:rgba(var(--brand-rgb),0.35)">${TYPE_NAME[n.type] || ''}</span></div>
+          <div class="notif-content">${esc(n.content)}</div>
+          <div class="notif-time">${fmtTime(n.created_at)}</div>
+        </div>
+        ${n.is_read ? '' : `<div class="notif-actions"><button class="ph-btn" onclick="markRead('${n.id}', this)">已读</button></div>`}
+      </div>`).join('');
+  } catch (e) {
+    document.getElementById('notifList').innerHTML = `<div class="notif-empty">${esc(e.message)}</div>`;
+  }
+}
+
+async function markRead(id, btn) {
+  try {
+    await api(`/notifications/read?notification_id=${id}`, { method: 'POST' });
+    const item = btn.closest('.notif-item');
+    if (item) {
+      item.style.maxHeight = item.offsetHeight + 'px';
+      void item.offsetHeight;
+      item.classList.add('swipe-out');
+      setTimeout(() => item.remove(), 500);
+    }
+    refreshNotifBadge();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function markAllRead() {
+  const items = [...document.querySelectorAll('#notifList .notif-item')];
+  if (!items.length) return;
+  // 锁定当前高度，让折叠动画可过渡
+  items.forEach(el => { el.style.maxHeight = el.offsetHeight + 'px'; el.style.overflow = 'hidden'; });
+  void document.body.offsetHeight;
+  // 逐条右滑消失（通知栏式级联）
+  items.forEach((el, i) => setTimeout(() => el.classList.add('swipe-out'), i * 70));
+  try {
+    const r = await api('/notifications/read', { method: 'POST' });
+    toast(`已标记 ${r.marked} 条为已读`);
+    refreshNotifBadge();
+  } catch (e) { toast(e.message, 'err'); }
+  setTimeout(loadNotifs, items.length * 70 + 520);
+}
+
+loadNotifs();
+</script>
+</body>
+</html>

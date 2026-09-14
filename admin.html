@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<title>管理后台 | 研屿</title>
+<link rel="stylesheet" href="assets/app.css?v=10">
+<script src="mock-api.js"></script>
+<script src="assets/app.js?v=18"></script>
+<script src="assets/vendor/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body.adm-body { display: flex; min-height: 100vh; background: var(--bg);
+    color: rgba(var(--brand-rgb), 0.88); }
+
+  /* ── 管理端独立侧栏 ── */
+  .adm-rail { width: 208px; flex-shrink: 0; display: flex; flex-direction: column;
+    background: var(--bg-sunken, rgba(0,0,0,0.25)); border-right: 1px solid rgba(var(--line-rgb), 0.10);
+    padding: 18px 12px; position: sticky; top: 0; height: 100vh; }
+  .adm-rail-logo { display: flex; align-items: center; gap: 10px; padding: 4px 10px 18px;
+    border-bottom: 1px solid rgba(var(--line-rgb), 0.08); margin-bottom: 14px; }
+  .adm-rail-logo img { width: 34px; height: 34px; border-radius: 9px; }
+  .adm-rail-logo b { font-family: ui-serif, Georgia, "Noto Serif SC", serif; font-size: 14.5px;
+    color: rgba(var(--brand-rgb), 0.92); }
+  .adm-rail-logo small { display: block; font-size: 10px; letter-spacing: 0.14em;
+    color: rgba(var(--brand-rgb), 0.4); }
+  .adm-tab { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 3px;
+    border-radius: 10px; border: none; background: none; width: 100%; text-align: left;
+    color: rgba(var(--brand-rgb), 0.5); font-size: 13px; font-family: inherit; cursor: pointer;
+    transition: all 0.15s; position: relative; }
+  .adm-tab svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .adm-tab:hover { color: rgba(var(--brand-rgb), 0.85); background: rgba(var(--line-rgb), 0.05); }
+  .adm-tab.active { color: rgba(var(--brand-rgb), 0.95); background: rgba(109,179,163,0.10); }
+  .adm-tab.active::before { content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px;
+    width: 3px; border-radius: 0 3px 3px 0; background: var(--accent, #6db3a3); }
+  .adm-rail-bottom { margin-top: auto; border-top: 1px solid rgba(var(--line-rgb), 0.08);
+    padding-top: 12px; }
+  .adm-rail-user { padding: 6px 10px 10px; font-size: 11.5px; color: rgba(var(--brand-rgb), 0.4); }
+
+  /* ── 内容区 ── */
+  .adm-main { flex: 1; min-width: 0; padding: 26px 34px 60px; }
+  .adm-head { margin-bottom: 22px; }
+  .adm-head h1 { font-family: ui-serif, Georgia, "Noto Serif SC", serif; font-size: 22px;
+    font-weight: 700; color: rgba(var(--brand-rgb), 0.95); }
+  .adm-head p { font-size: 12.5px; color: rgba(var(--brand-rgb), 0.45); margin-top: 4px; }
+  .adm-tabpane { display: none; }
+  .adm-tabpane.active { display: block; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px;
+    margin-bottom: 20px; }
+  .stat-card { background: rgba(var(--line-rgb), 0.05); border: 1px solid rgba(var(--line-rgb), 0.10);
+    border-radius: 14px; padding: 14px 16px; }
+  .stat-card .k { font-size: 11px; color: rgba(var(--brand-rgb), 0.45); margin-bottom: 6px; }
+  .stat-card .v { font-family: ui-serif, Georgia, serif; font-size: 24px; font-weight: 700;
+    color: rgba(var(--brand-rgb), 0.95); }
+  .stat-card .s { font-size: 11px; color: rgba(var(--brand-rgb), 0.35); margin-top: 4px; }
+  .stat-card.hot .v { color: var(--accent, #6db3a3); }
+
+  .section { background: rgba(var(--line-rgb), 0.04); border: 1px solid rgba(var(--line-rgb), 0.10);
+    border-radius: 16px; padding: 18px 20px; margin-bottom: 20px; }
+  .section h3 { font-family: ui-serif, Georgia, "Noto Serif SC", serif; font-size: 15px;
+    color: rgba(var(--brand-rgb), 0.9); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section h3::before { content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent, #6db3a3); }
+
+  .adm-chart { width: 100%; height: 300px; }
+
+  table.adm { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.adm th { text-align: left; padding: 8px 10px; color: rgba(var(--brand-rgb), 0.4);
+    font-weight: 500; border-bottom: 1px solid rgba(var(--line-rgb), 0.12); white-space: nowrap; }
+  table.adm td { padding: 9px 10px; border-bottom: 1px solid rgba(var(--line-rgb), 0.06);
+    color: rgba(var(--brand-rgb), 0.75); white-space: nowrap; }
+  table.adm tr:hover td { background: rgba(var(--line-rgb), 0.03); }
+  .q-pill { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px;
+    background: rgba(var(--line-rgb), 0.07); color: rgba(var(--brand-rgb), 0.6); margin-right: 4px; }
+  .q-pill.low { color: #e67864; background: rgba(230,120,100,0.1); }
+  .byok-tag { color: var(--accent, #6db3a3); font-size: 11px; }
+
+  .form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
+  .form-row label { display: flex; flex-direction: column; gap: 5px; font-size: 11.5px;
+    color: rgba(var(--brand-rgb), 0.5); }
+  .form-row input, .form-row select { width: 130px; }
+  .search-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+  .codes-out { margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+    background: rgba(109,179,163,0.07); font-family: ui-monospace, monospace;
+    font-size: 12px; color: rgba(var(--brand-rgb), 0.8); line-height: 1.9; display: none; }
+
+  /* 渠道卡片 */
+  .ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px;
+    margin-bottom: 18px; }
+  .ch-card { position: relative; background: rgba(var(--line-rgb), 0.05);
+    border: 1px solid rgba(var(--line-rgb), 0.12); border-radius: 14px; padding: 16px; }
+  .ch-card.active { border-color: rgba(109,179,163,0.5); background: rgba(109,179,163,0.06); }
+  .ch-card .ch-label { font-weight: 600; font-size: 13.5px; color: rgba(var(--brand-rgb), 0.9);
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .ch-active-badge { font-size: 10.5px; padding: 2px 9px; border-radius: 9999px;
+    background: rgba(109,179,163,0.16); color: var(--accent, #6db3a3); font-weight: 600; }
+  .ch-card .ch-row { font-size: 11.5px; color: rgba(var(--brand-rgb), 0.55); padding: 3px 0;
+    display: flex; gap: 8px; align-items: baseline; }
+  .ch-card .ch-row span { flex-shrink: 0; width: 34px; color: rgba(var(--brand-rgb), 0.35); }
+  .ch-card .ch-row b { font-weight: 400; font-family: ui-monospace, monospace; font-size: 11px;
+    word-break: break-all; color: rgba(var(--brand-rgb), 0.75); }
+  .ch-actions { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+
+  .hint-err { padding: 40px; text-align: center; color: rgba(var(--brand-rgb), 0.4); }
+
+  /* 搜索 API 采集卡片 */
+  .sc-grid { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+  .sc-sub { font-size: 11px; letter-spacing: 0.08em; color: rgba(var(--brand-rgb), 0.4); margin-bottom: 8px; }
+  .sc-params .form-row label { flex: 1; min-width: 110px; }
+  .sc-params .form-row input, .sc-params .form-row select { width: 100% !important; }
+  .sc-channel { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: rgba(var(--line-rgb), 0.05); border: 1px solid rgba(var(--line-rgb), 0.10);
+    border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; }
+  .sc-ch-name { font-size: 12.5px; font-weight: 600; color: rgba(var(--brand-rgb), 0.85); }
+  .sc-ch-status { font-size: 11px; color: rgba(var(--brand-rgb), 0.45); margin-top: 2px; }
+  @media (max-width: 900px) { .sc-grid { grid-template-columns: 1fr; } }
+  .llm-hint { font-size: 12px; margin-top: 8px; color: rgba(var(--brand-rgb), 0.5); }
+  .llm-hint.ok { color: var(--accent, #6db3a3); }
+  .llm-hint.err { color: #e67864; }
+
+  /* 场景审核 */
+  .rv-filter { display: flex; gap: 6px; margin-bottom: 14px; }
+  .rv-fbtn { padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(var(--line-rgb), 0.12);
+    background: none; color: rgba(var(--brand-rgb), 0.55); font-size: 12px; cursor: pointer;
+    font-family: inherit; transition: all .15s; }
+  .rv-fbtn:hover { color: rgba(var(--brand-rgb), 0.85); }
+  .rv-fbtn.active { background: rgba(109,179,163,0.12); color: var(--accent, #6db3a3);
+    border-color: rgba(109,179,163,0.35); }
+  .review-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+  .review-card { display: flex; gap: 12px; background: rgba(var(--line-rgb), 0.05);
+    border: 1px solid rgba(var(--line-rgb), 0.10); border-radius: 14px; padding: 12px; }
+  .review-card .rv-img { width: 112px; height: 76px; object-fit: cover; border-radius: 10px;
+    flex-shrink: 0; background: rgba(var(--line-rgb), 0.08); }
+  .review-card .rv-body { flex: 1; min-width: 0; }
+  .review-card .rv-name { font-size: 13.5px; font-weight: 600; color: rgba(var(--brand-rgb), 0.9);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .review-card .rv-tag { font-size: 11.5px; color: rgba(var(--brand-rgb), 0.5); margin-top: 3px; }
+  .review-card .rv-meta { font-size: 11px; color: rgba(var(--brand-rgb), 0.35); margin-top: 3px; }
+  .review-card .rv-actions { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+  .rv-badge { font-size: 10px; padding: 2px 8px; border-radius: 9999px; font-weight: 500; }
+  .rv-badge.pending { background: rgba(230,180,110,0.15); color: #e6b46e; }
+  .rv-badge.approved { background: rgba(109,179,163,0.16); color: var(--accent, #6db3a3); }
+  .rv-badge.rejected { background: rgba(230,120,100,0.12); color: #e67864; }
+
+  .ov-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .ov-grid .section { margin-bottom: 0; }
+
+  @media (max-width: 900px) {
+    body.adm-body { flex-direction: column; }
+    .adm-rail { width: 100%; height: auto; position: sticky; top: 0; z-index: 100;
+      flex-direction: row; align-items: center; overflow-x: auto; padding: 8px 10px; gap: 4px;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      background: rgba(var(--bg-rgb, 18,16,14), 0.96); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(var(--line-rgb), 0.10); }
+    .adm-rail::-webkit-scrollbar { display: none; }
+    .adm-rail-logo { border: none; margin: 0 8px 0 0; padding: 0; flex-shrink: 0; }
+    .adm-rail-logo small { display: none; }
+    .adm-tab { width: auto; white-space: nowrap; padding: 7px 13px; font-size: 12.5px;
+      flex-shrink: 0; border-radius: 8px; }
+    .adm-tab.active::before { display: none; }
+    .adm-tab svg { width: 14px; height: 14px; }
+    .adm-rail-bottom { margin: 0 0 0 auto; border: none; padding: 0; display: flex;
+      gap: 4px; flex-shrink: 0; align-items: center; }
+    .adm-rail-user { display: none; }
+    .adm-main { padding: 16px 12px calc(24px + env(safe-area-inset-bottom, 0px)); }
+    .adm-head h1 { font-size: 18px; }
+    .adm-head p { font-size: 11.5px; }
+
+    .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .stat-card { padding: 12px; border-radius: 12px; }
+    .stat-card .v { font-size: 20px; }
+
+    .section { padding: 14px; border-radius: 14px; margin-bottom: 14px; }
+    .section h3 { font-size: 14px; margin-bottom: 10px; }
+
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch;
+      margin: 0 -14px; padding: 0 14px; }
+    table.adm { min-width: 560px; font-size: 12px; }
+    table.adm th, table.adm td { padding: 7px 8px; }
+
+    .adm-chart { height: 220px !important; }
+
+    .form-row { flex-direction: column; gap: 8px; }
+    .form-row label { width: 100%; }
+    .form-row input, .form-row select { width: 100% !important; }
+
+    .search-bar { flex-direction: row; }
+    .search-bar input { flex: 1; }
+
+    .ch-grid { grid-template-columns: 1fr; gap: 10px; }
+    .review-grid { grid-template-columns: 1fr; }
+    .review-card { flex-direction: column; }
+    .review-card .rv-img { width: 100%; height: 140px; }
+    .sc-grid { grid-template-columns: 1fr; }
+
+    .ov-grid { grid-template-columns: 1fr; }
+
+    .rv-filter { flex-wrap: wrap; gap: 6px; }
+    .rv-fbtn { padding: 5px 12px; font-size: 11.5px; }
+  }
+
+  @media (max-width: 480px) {
+    .adm-rail { padding: 6px 8px; }
+    .adm-rail-logo img { width: 28px; height: 28px; }
+    .adm-rail-logo b { font-size: 13px; }
+    .adm-tab { padding: 6px 10px; font-size: 12px; }
+    .adm-main { padding: 12px 10px 20px; }
+    .stat-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .stat-card .v { font-size: 18px; }
+    .stat-card .k { font-size: 10px; }
+    .adm-head h1 { font-size: 17px; }
+    .section { padding: 12px; }
+    .adm-chart { height: 200px !important; }
+    .review-card .rv-img { height: 120px; }
+  }
+
+/* ── DEMO MODE Badge ── */
+.demo-badge {
+  position: fixed; bottom: 16px; right: 16px; z-index: 99999;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1a1a1a; background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+  pointer-events: none; user-select: none;
+  animation: demoBadgePulse 3s ease-in-out infinite;
+}
+@keyframes demoBadgePulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@media (max-width: 767px) {
+  .demo-badge { bottom: 72px; right: 10px; font-size: 10px; padding: 5px 10px; }
+}
+
+</style>
+</head>
+<body class="adm-body">
+<div class="demo-badge">DEMO MODE</div>
+
+<aside class="adm-rail">
+  <div class="adm-rail-logo">
+    <img src="assets/favicon.png" alt="">
+    <div><b>研屿</b><small>ADMIN CONSOLE</small></div>
+  </div>
+  <button class="adm-tab active" data-tab="overview" onclick="switchTab('overview')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+    概览
+  </button>
+  <button class="adm-tab" data-tab="users" onclick="switchTab('users')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    用户管理
+  </button>
+  <button class="adm-tab" data-tab="channels" onclick="switchTab('channels')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    模型渠道
+  </button>
+  <button class="adm-tab" data-tab="reviews" onclick="switchTab('reviews')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    场景审核
+  </button>
+  <button class="adm-tab" data-tab="codes" onclick="switchTab('codes')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+    兑换码
+  </button>
+  <button class="adm-tab" data-tab="inventory" onclick="switchTab('inventory')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg>
+    数据存量
+  </button>
+  <button class="adm-tab" data-tab="usage" onclick="switchTab('usage')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-6"/></svg>
+    用量统计
+  </button>
+  <div class="adm-rail-bottom">
+    <div class="adm-rail-user" id="admWho"></div>
+    <button class="adm-tab" id="admThemeToggle" onclick="toggleTheme()">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="display:none"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      主题
+    </button>
+    <button class="adm-tab" onclick="location.href='index.html'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      返回前台
+    </button>
+  </div>
+</aside>
+
+<main class="adm-main">
+  <div id="adminBody"><div class="hint-err">鉴权中…</div></div>
+</main>
+
+<script src="assets/vendor/echarts.min.js"></script>
+<script>
+document.querySelector('[data-nav]')?.remove();
+
+const SCENE_NAME = { report: '报告', chat: '择校对话', study: '自习室', template: '自定义场景', mining: '特质挖掘' };
+const SOURCE_NAME = { site: '平台公钥', byok: '用户自有', pool: '免费池' };
+let _userPage = 1;
+let _trendChart = null, _donutChart = null;
+
+async function boot() {
+  try { await requireAuth(); } catch (e) { return; }
+  if (!USER?.is_admin) {
+    document.getElementById('adminBody').innerHTML =
+      '<div class="hint-err">需要管理员权限。请使用管理员账号登录。</div>';
+    return;
+  }
+  document.getElementById('admWho').textContent = `${USER.nickname || USER.username} · 管理员`;
+  document.getElementById('adminBody').innerHTML = `
+    <div class="adm-tabpane active" id="pane-overview">
+      <div class="adm-head"><h1>概览</h1><p>站点运营数据一览（今日口径以对话行为计）</p></div>
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="section">
+        <h3>近 30 天活跃与消耗</h3>
+        <div class="adm-chart" id="trendChart" style="height:330px"></div>
+      </div>
+      <div class="ov-grid">
+        <div class="section"><h3>场景调用分布</h3><div class="adm-chart" id="ovDonut" style="height:250px"></div></div>
+        <div class="section"><h3>配额消耗率（全体用户）</h3><div class="adm-chart" id="quotaBar" style="height:250px"></div></div>
+        <div class="section"><h3>兑换码核销</h3><div class="adm-chart" id="redeemGauge" style="height:250px"></div></div>
+      </div>
+    </div>
+    <div class="adm-tabpane" id="pane-channels">
+      <div class="adm-head"><h1>模型渠道</h1><p>已配置的多套全站公钥，点"启用"即可全站切换，热更新无需重启</p></div>
+      <div class="section" id="searchApiCard">
+        <h3>搜索 API 聚合采集（舆情主力源）</h3>
+        <div style="font-size:11.5px;color:rgba(var(--brand-rgb),0.5)" id="searchApiInfo">加载中…</div>
+        <div class="sc-grid" style="margin-top:14px">
+          <div class="sc-params">
+            <div class="sc-sub">采集参数</div>
+            <div class="form-row">
+              <label>每轮关键词数<input class="gy-input2" id="scQueries" type="number" min="1" max="50" style="width:100%"></label>
+              <label>时效
+                <select class="gy-select" id="scFreshness" style="width:100%">
+                  <option value="oneDay">一天内</option>
+                  <option value="oneWeek">一周内</option>
+                  <option value="oneMonth">一月内</option>
+                  <option value="oneYear">一年内</option>
+                </select></label>
+              <label>每查询条数<input class="gy-input2" id="scResults" type="number" min="1" max="20" style="width:100%"></label>
+            </div>
+          </div>
+          <div class="sc-channels">
+            <div class="sc-sub">通道开关</div>
+            <div class="sc-channel">
+              <div><div class="sc-ch-name">博查 · 中文主力</div><div class="sc-ch-status" id="scBochaStatus">—</div></div>
+              <label class="toggle"><input type="checkbox" id="scBocha"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="sc-channel">
+              <div><div class="sc-ch-name">Tavily · 通用补充</div><div class="sc-ch-status" id="scTavilyStatus">—</div></div>
+              <label class="toggle"><input type="checkbox" id="scTavily"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:12px">
+          <span style="font-size:11px;color:rgba(var(--brand-rgb),0.4)">改动即时生效</span>
+          <button class="gy-btn" style="padding:8px 26px;font-weight:600" onclick="saveSearchConfig()">保存</button>
+        </div>
+        <div style="font-size:11px;color:rgba(var(--brand-rgb),0.35);margin-top:8px">
+          关键词池=院校×专业（按天轮转）+通用考研词；通道停用或 key 未配置时该通道跳过。
+        </div>
+      </div>
+      <div class="ch-grid" id="chGrid"></div>
+      <div class="section">
+        <h3>添加渠道</h3>
+        <div class="form-row">
+          <label>渠道名称<input class="gy-input2" id="chLabel" placeholder="如：百炼 DeepSeek" style="width:150px"></label>
+          <label>提供商
+            <select class="gy-select" id="chProvider" onchange="chOnProviderChange()">
+              <option value="qwen">通义千问 Qwen（百炼）</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="zhipu">智谱 GLM</option>
+              <option value="custom">自定义</option>
+            </select></label>
+          <label>API Key<input class="gy-input2" type="password" id="chKey" placeholder="sk-..." style="width:210px"></label>
+          <label>模型<input class="gy-input2" id="chModel" list="chModelList" placeholder="选厂商自动带出" style="width:210px" autocomplete="off"><datalist id="chModelList"></datalist></label>
+          <label>Base URL<input class="gy-input2" id="chBase" placeholder="https://..." style="width:240px"></label>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="gy-btn" style="padding:8px 18px" onclick="addChannel()">添加到渠道列表</button>
+          <span style="font-size:11.5px;color:rgba(var(--brand-rgb),0.4)">选厂商自动带出地址与常用模型（模型也可直接输入）；添加后点"启用"才生效</span>
+        </div>
+      </div>
+      <div class="section">
+        <h3>供应商预设</h3>
+        <p style="font-size:11.5px;color:rgba(var(--brand-rgb),0.4);margin:-6px 0 12px">
+          用户在「设置-模型服务」看到的厂家列表：选中即自动填写 Base URL，并在模型框给出常用型号下拉（也可自行输入）。
+          保存后用户设置页即时生效；"custom（自定义）"为系统兜底入口，始终保留。
+        </p>
+        <div class="table-wrap">
+          <table class="adm">
+            <thead><tr><th style="width:90px">ID</th><th style="width:170px">名称</th><th>Base URL</th>
+              <th style="width:280px">常用模型（逗号分隔）</th><th style="width:130px">默认模型</th><th></th></tr></thead>
+            <tbody id="presetRows"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+          <button class="gy-btn" style="padding:7px 14px;font-size:12px" onclick="addPresetRow()">＋ 添加供应商</button>
+          <button class="gy-btn" style="padding:7px 18px;font-size:12px;font-weight:600" onclick="savePresets()">保存预设</button>
+          <span class="llm-hint" id="presetHint" style="margin-top:0"></span>
+        </div>
+      </div>
+    </div>
+    <div class="adm-tabpane" id="pane-users">
+      <div class="adm-head"><h1>用户管理</h1><p>配额、自有 Key 查看、手动加次数</p></div>
+      <div class="search-bar">
+        <input class="gy-input2" id="uq" placeholder="搜索用户名 / 昵称 / 邮箱">
+        <button class="gy-btn" style="padding:7px 16px" onclick="loadUsers()">搜索</button>
+      </div>
+      <div class="table-wrap">
+        <table class="adm">
+          <thead><tr><th>用户</th><th>注册时间</th><th>报告</th><th>择校对话</th><th>自习室对话</th>
+            <th>自定义场景</th><th>自有 Key</th><th>操作</th></tr></thead>
+          <tbody id="userRows"><tr><td colspan="8">加载中…</td></tr></tbody>
+        </table>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button class="gy-btn" style="padding:6px 14px;font-size:12px" onclick="loadUsers(-1)">上一页</button>
+        <span id="userPageInfo" style="font-size:12px;color:rgba(var(--brand-rgb),0.4)"></span>
+        <button class="gy-btn" style="padding:6px 14px;font-size:12px" onclick="loadUsers(1)">下一页</button>
+      </div>
+      <div class="section" style="margin-top:18px">
+        <h3>管理员变动审计</h3>
+        <div class="table-wrap">
+          <table class="adm">
+            <thead><tr><th>时间</th><th>操作人</th><th>对象</th><th>动作</th></tr></thead>
+            <tbody id="roleAuditRows"><tr><td colspan="4">加载中…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="adm-tabpane" id="pane-reviews">
+      <div class="adm-head"><h1>场景审核</h1><p>用户上传的公开自习室：通过后上线场景广场（含作者自选）；驳回请附原因，作者可见</p></div>
+      <div class="rv-filter">
+        <button class="rv-fbtn active" data-st="pending" onclick="setReviewStatus('pending')">待审核</button>
+        <button class="rv-fbtn" data-st="approved" onclick="setReviewStatus('approved')">已上线</button>
+        <button class="rv-fbtn" data-st="rejected" onclick="setReviewStatus('rejected')">未通过</button>
+        <button class="rv-fbtn" data-st="all" onclick="setReviewStatus('all')">全部公开</button>
+      </div>
+      <div class="review-grid" id="reviewGrid"><div class="hint-err">加载中…</div></div>
+    </div>
+    <div class="adm-tabpane" id="pane-codes">
+      <div class="adm-head"><h1>兑换码</h1><p>批量生成次数包，用户在 设置-模型服务 里兑换</p></div>
+      <div class="section">
+        <h3>生成</h3>
+        <div class="form-row">
+          <label>数量<input class="gy-input2" id="cCount" type="number" value="5" min="1" max="200"></label>
+          <label>报告 +<input class="gy-input2" id="cReport" type="number" value="1" min="0"></label>
+          <label>择校对话 +<input class="gy-input2" id="cChat" type="number" value="10" min="0"></label>
+          <label>自习室 +<input class="gy-input2" id="cStudy" type="number" value="10" min="0"></label>
+          <label>自定义场景 +<input class="gy-input2" id="cTpl" type="number" value="1" min="0"></label>
+          <label>每码可用次数<input class="gy-input2" id="cMax" type="number" value="1" min="1"></label>
+          <label>备注<input class="gy-input2" id="cNote" placeholder="如：首批体验包" style="width:150px"></label>
+          <button class="gy-btn" style="padding:8px 18px" onclick="createCodes()">生成</button>
+        </div>
+        <div class="codes-out" id="codesOut"></div>
+      </div>
+      <div class="section">
+        <h3>已生成的码</h3>
+        <div class="table-wrap">
+          <table class="adm">
+            <thead><tr><th>码</th><th>内容</th><th>已用 / 上限</th><th>备注</th><th>生成时间</th></tr></thead>
+            <tbody id="codeRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="adm-tabpane" id="pane-inventory">
+      <div class="adm-head"><h1>数据存量</h1><p>站点各类数据的存储规模、来源分布与用户授权概况</p></div>
+      <div class="stat-grid" id="invStats"></div>
+      <div class="section">
+        <h3>实时舆情来源分布</h3>
+        <div id="invPlatforms" style="font-size:12.5px;line-height:2"></div>
+      </div>
+      <div class="section">
+        <h3>用户平台授权（Cookie 加密存储，永不展示明文）</h3>
+        <div class="table-wrap">
+          <table class="adm">
+            <thead><tr><th>用户</th><th>平台</th><th>状态</th><th>Cookie</th><th>最后使用</th><th>更新时间</th></tr></thead>
+            <tbody id="invAuthRows"><tr><td colspan="6">加载中…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section">
+        <h3>贡献排行（用户采集反哺公共库）</h3>
+        <div id="invContrib" style="font-size:12.5px;line-height:2">暂无贡献记录</div>
+      </div>
+    </div>
+    <div class="adm-tabpane" id="pane-usage">
+      <div class="adm-head"><h1>用量统计</h1><p>按场景与来源的 LLM 调用分布</p></div>
+      <div class="section">
+        <h3>按场景 / 来源</h3>
+        <table class="adm">
+          <thead><tr><th>场景</th><th>来源</th><th>调用次数</th><th>Token</th></tr></thead>
+          <tbody id="usageRows"></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+  await switchTab('overview');
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.adm-tabpane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.adm-tab[data-tab]').forEach(b => b.classList.remove('active'));
+  document.getElementById('pane-' + name)?.classList.add('active');
+  document.querySelector(`.adm-tab[data-tab="${name}"]`)?.classList.add('active');
+  if (name === 'overview') { loadOverview(); }
+  if (name === 'channels') { loadAdminPresets().then(() => { loadChannels(); renderPresets(); }); loadSearchConfig(); }
+  if (name === 'reviews') { loadReviews(); }
+  if (name === 'users') { loadUsers(); loadRoleAudit(); }
+  if (name === 'codes') { loadCodes(); }
+  if (name === 'usage') { loadUsage(); }
+  if (name === 'inventory') { loadInventory(); }
+}
+
+function fmtNum(n) { return n >= 10000 ? (n / 10000).toFixed(1) + 'w' : String(n ?? 0); }
+
+// ── 概览 ──
+const _charts = {};
+function chart(id) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  _charts[id] = _charts[id] || echarts.init(el);
+  return _charts[id];
+}
+window.addEventListener('resize', () => Object.values(_charts).forEach(c => c.resize()));
+
+function deltaHtml(cur, prev) {
+  if (prev === undefined || prev === null) return '';
+  if (cur === prev) return '<span style="color:rgba(var(--brand-rgb),0.35)">与昨日持平</span>';
+  const up = cur > prev;
+  const color = up ? 'var(--accent,#6db3a3)' : '#e67864';
+  const arrow = up ? '▲' : '▼';
+  const pct = prev ? Math.round(Math.abs(cur - prev) / prev * 100) : '—';
+  return `<span style="color:${color}">${arrow} ${pct}%（昨日 ${fmtNum(prev)}）</span>`;
+}
+
+async function loadOverview() {
+  let o;
+  try { o = await api('/admin/overview'); } catch (e) {
+    document.getElementById('statGrid').innerHTML = `<div class="hint-err">${e.message}</div>`; return;
+  }
+  const dRun = deltaHtml(o.llm.runs_today, o.llm.runs_yesterday);
+  const dTok = deltaHtml(o.llm.tokens_today ?? undefined, o.llm.tokens_yesterday);
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat-card"><div class="k">用户总数</div><div class="v">${o.users.total}</div>
+      <div class="s">今日新增 ${o.users.new_today}</div></div>
+    <div class="stat-card hot"><div class="k">今日日活</div><div class="v">${o.users.dau_today}</div>
+      <div class="s">以对话行为计</div></div>
+    <div class="stat-card"><div class="k">今日 Agent 对话</div><div class="v">${o.llm.runs_today}</div>
+      <div class="s">${dRun}</div></div>
+    <div class="stat-card"><div class="k">累计 Token 消耗</div><div class="v">${fmtNum(o.llm.tokens_total)}</div>
+      <div class="s">${dTok ? 'Agent 主链路 · ' + dTok : 'Agent 主链路合计'}</div></div>
+    <div class="stat-card"><div class="k">BYOK 用户</div><div class="v">${o.llm.byok_users}</div>
+      <div class="s">自带 Key 不占额度</div></div>
+    <div class="stat-card"><div class="k">配额见底用户</div><div class="v">${o.quotas.exhausted}</div>
+      <div class="s">报告+对话均用完</div></div>
+    <div class="stat-card"><div class="k">兑换码剩余次数</div><div class="v">${o.codes.uses_left}</div>
+      <div class="s">已核销 ${o.codes.redeemed_uses}</div></div>
+    <div class="stat-card"><div class="k">自定义自习室</div><div class="v">${o.custom_scenes}</div>
+      <div class="s">免费池 ${o.llm.pool_models} 个模型</div></div>`;
+
+  // 30 天趋势
+  try {
+    const s = await api('/admin/stats/daily?days=30');
+    renderTrend(s.days);
+  } catch (e) { /* ignore */ }
+  // 场景分布
+  try {
+    const u = await api('/admin/usage');
+    renderSceneDonut(u.by_scene);
+  } catch (e) { /* ignore */ }
+  // 配额消耗率
+  renderQuotaBar(o.quotas.usage || {});
+  // 兑换码核销仪表
+  renderRedeemGauge(o.codes);
+}
+
+function renderTrend(days) {
+  const ch = chart('trendChart');
+  if (!ch) return;
+  const cream = 'rgba(244,231,211,';
+  ch.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { textStyle: { color: cream + '0.55)', fontSize: 11 },
+      data: ['对话执行', 'Token 消耗', '日活用户', '新增用户'] },
+    grid: { left: 52, right: 60, top: 44, bottom: 30 },
+    xAxis: { type: 'category', data: days.map(d => d.date),
+      axisLine: { lineStyle: { color: cream + '0.2)' } },
+      axisLabel: { color: cream + '0.45)', fontSize: 10 } },
+    yAxis: [
+      { type: 'value', name: '次数', nameTextStyle: { color: cream + '0.4)', fontSize: 10 },
+        axisLabel: { color: cream + '0.45)', fontSize: 10 },
+        splitLine: { lineStyle: { color: cream + '0.07)' } } },
+      { type: 'value', name: 'Token(万)', nameTextStyle: { color: cream + '0.4)', fontSize: 10 },
+        axisLabel: { color: cream + '0.45)', fontSize: 10, formatter: v => (v / 10000).toFixed(0) + 'w' },
+        splitLine: { show: false } },
+    ],
+    series: [
+      { name: '对话执行', type: 'bar', data: days.map(d => d.runs), barMaxWidth: 16,
+        itemStyle: { color: '#6db3a3', borderRadius: [4, 4, 0, 0] } },
+      { name: 'Token 消耗', type: 'line', yAxisIndex: 1, smooth: true,
+        data: days.map(d => d.tokens), symbolSize: 4,
+        lineStyle: { color: '#e6b46e', width: 2 },
+        itemStyle: { color: '#e6b46e' },
+        areaStyle: { color: 'rgba(230,180,110,0.10)' } },
+      { name: '日活用户', type: 'line', yAxisIndex: 0, smooth: true,
+        data: days.map(d => d.active_users), symbolSize: 4,
+        lineStyle: { color: '#8fb3cc' }, itemStyle: { color: '#8fb3cc' } },
+      { name: '新增用户', type: 'line', yAxisIndex: 0, smooth: true,
+        data: days.map(d => d.new_users), symbolSize: 4,
+        lineStyle: { color: '#c9a86a', type: 'dashed' }, itemStyle: { color: '#c9a86a' } },
+    ],
+  });
+}
+
+function renderSceneDonut(byScene) {
+  const ch = chart('ovDonut');
+  if (!ch) return;
+  if (!(byScene || []).length) {
+    ch.setOption({ title: { text: '暂无调用记录', left: 'center', top: 'center',
+      textStyle: { color: 'rgba(244,231,211,0.35)', fontSize: 12, fontWeight: 400 } } });
+    return;
+  }
+  const palette = ['#6db3a3', '#e6b46e', '#c9a86a', '#8fb3cc', '#a13d2c', '#9c8f7f'];
+  ch.setOption({
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 0, textStyle: { color: 'rgba(244,231,211,0.55)', fontSize: 10.5 } },
+    series: [{
+      type: 'pie', radius: ['40%', '66%'], center: ['50%', '44%'],
+      data: byScene.map((row, i) => ({
+        name: `${SCENE_NAME[row.scene] || row.scene} · ${SOURCE_NAME[row.source] || row.source}`,
+        value: row.calls, itemStyle: { color: palette[i % palette.length] },
+      })),
+      label: { color: 'rgba(244,231,211,0.6)', fontSize: 10.5 },
+    }],
+  });
+}
+
+function renderQuotaBar(usage) {
+  const ch = chart('quotaBar');
+  if (!ch) return;
+  const names = { report: '报告', chat: '择校对话', study: '自习室对话', template: '自定义场景' };
+  const entries = Object.entries(usage).map(([scene, v]) => ({
+    scene, rate: v.limit ? Math.min(100, Math.round(v.used / v.limit * 100)) : 0,
+    used: v.used, limit: v.limit,
+  }));
+  if (!entries.length) {
+    ch.setOption({ title: { text: '暂无配额数据', left: 'center', top: 'center',
+      textStyle: { color: 'rgba(244,231,211,0.35)', fontSize: 12, fontWeight: 400 } } });
+    return;
+  }
+  ch.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' },
+      formatter: ps => ps.map(p => `${p.name}：${entries[p.dataIndex].used}/${entries[p.dataIndex].limit} 次（${p.value}%）`).join('<br>') },
+    grid: { left: 90, right: 44, top: 10, bottom: 10 },
+    xAxis: { type: 'value', max: 100, axisLabel: { show: false }, splitLine: { show: false } },
+    yAxis: { type: 'category', inverse: true,
+      data: entries.map(e => names[e.scene] || e.scene),
+      axisLine: { show: false }, axisTick: { show: false },
+      axisLabel: { color: 'rgba(244,231,211,0.6)', fontSize: 11 } },
+    series: [{
+      type: 'bar', barWidth: 14, data: entries.map(e => e.rate),
+      itemStyle: { borderRadius: [0, 7, 7, 0],
+        color: e => e.value > 85 ? '#e67864' : '#6db3a3' },
+      backgroundStyle: { color: 'rgba(244,231,211,0.06)', borderRadius: [0, 7, 7, 0] },
+      label: { show: true, position: 'right', fontSize: 10.5,
+        color: 'rgba(244,231,211,0.6)', formatter: '{c}%' },
+    }],
+  });
+}
+
+function renderRedeemGauge(codes) {
+  const ch = chart('redeemGauge');
+  if (!ch) return;
+  const total = codes.redeemed_uses + codes.uses_left;
+  if (!total) {
+    ch.setOption({ title: { text: '还没有兑换码', left: 'center', top: 'center',
+      textStyle: { color: 'rgba(244,231,211,0.35)', fontSize: 12, fontWeight: 400 } } });
+    return;
+  }
+  const rate = Math.round(codes.redeemed_uses / total * 100);
+  ch.setOption({
+    series: [{
+      type: 'gauge', startAngle: 210, endAngle: -30, min: 0, max: 100,
+      radius: '92%', center: ['50%', '58%'],
+      progress: { show: true, width: 12, itemStyle: { color: '#6db3a3' } },
+      axisLine: { lineStyle: { width: 12, color: [[1, 'rgba(244,231,211,0.08)']] } },
+      axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
+      pointer: { show: false }, anchor: { show: false },
+      detail: { valueAnimation: true, offsetCenter: [0, '5%'],
+        formatter: v => v + '%',
+        color: 'rgba(244,231,211,0.9)', fontSize: 22, fontFamily: 'ui-serif, Georgia, serif' },
+      data: [{ value: rate, name: '已核销 ' + codes.redeemed_uses + ' / ' + total }],
+      title: { offsetCenter: [0, '32%'], color: 'rgba(244,231,211,0.4)', fontSize: 11 },
+    }],
+  });
+}
+
+function renderTrend(days) {
+  const el = document.getElementById('trendChart');
+  if (!el || typeof echarts === 'undefined') return;
+  _trendChart = _trendChart || echarts.init(el);
+  const cream = 'rgba(244,231,211,';
+  _trendChart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { textStyle: { color: cream + '0.55)', fontSize: 11 },
+      data: ['Agent 对话', '日活用户', '新增用户'] },
+    grid: { left: 46, right: 20, top: 38, bottom: 28 },
+    xAxis: { type: 'category', data: days.map(d => d.date),
+      axisLine: { lineStyle: { color: cream + '0.2)' } },
+      axisLabel: { color: cream + '0.45)', fontSize: 10 } },
+    yAxis: [
+      { type: 'value', name: '次数', nameTextStyle: { color: cream + '0.4)' },
+        axisLabel: { color: cream + '0.45)', fontSize: 10 },
+        splitLine: { lineStyle: { color: cream + '0.07)' } } },
+      { type: 'value', name: '人数', nameTextStyle: { color: cream + '0.4)' },
+        axisLabel: { color: cream + '0.45)', fontSize: 10 },
+        splitLine: { show: false } },
+    ],
+    series: [
+      { name: 'Agent 对话', type: 'bar', data: days.map(d => d.runs), barMaxWidth: 18,
+        itemStyle: { color: '#6db3a3', borderRadius: [4, 4, 0, 0] } },
+      { name: '日活用户', type: 'line', yAxisIndex: 1, smooth: true,
+        data: days.map(d => d.active_users), symbolSize: 5,
+        lineStyle: { color: '#e6b46e' }, itemStyle: { color: '#e6b46e' } },
+      { name: '新增用户', type: 'line', yAxisIndex: 1, smooth: true,
+        data: days.map(d => d.new_users), symbolSize: 5,
+        lineStyle: { color: '#c9a86a', type: 'dashed' }, itemStyle: { color: '#c9a86a' } },
+    ],
+  });
+}
+
+// ── 搜索 API 采集配置（可编辑，同模型渠道的站点配置模式） ──
+async function loadSearchConfig() {
+  const el = document.getElementById('searchApiInfo');
+  if (!el) return;
+  try {
+    const r = await api('/admin/search-config');
+    const item = (k, d) => `<span class="q-pill ${r[k].configured ? '' : 'low'}">${d} ${r[k].configured ? '已配置 ' + r[k].key_masked : '未配置'}</span>`;
+    el.innerHTML = `${item('bocha', '博查·中文主力')} ${item('tavily', 'Tavily·通用补充')}
+      <span style="margin-left:8px">Celery 每日 07:30 自动采集 · 采集结果按实时数据入库（is_demo=0）</span>`;
+    document.getElementById('scQueries').value = r.queries_per_run;
+    document.getElementById('scFreshness').value = r.freshness;
+    document.getElementById('scResults').value = r.results_per_query;
+    document.getElementById('scBocha').checked = r.bocha.enabled;
+    document.getElementById('scTavily').checked = r.tavily.enabled;
+    document.getElementById('scBochaStatus').textContent =
+      r.bocha.configured ? ('已配置 ' + r.bocha.key_masked) : '未配置 Key';
+    document.getElementById('scTavilyStatus').textContent =
+      r.tavily.configured ? ('已配置 ' + r.tavily.key_masked) : '未配置 Key';
+  } catch (e) { el.textContent = '加载失败：' + e.message; }
+}
+
+async function saveSearchConfig() {
+  const body = {
+    queries_per_run: +(document.getElementById('scQueries')?.value || 0),
+    freshness: document.getElementById('scFreshness')?.value || 'oneMonth',
+    results_per_query: +(document.getElementById('scResults')?.value || 0),
+    bocha_enabled: document.getElementById('scBocha')?.checked || false,
+    tavily_enabled: document.getElementById('scTavily')?.checked || false,
+  };
+  try {
+    await api('/admin/search-config', { method: 'PUT', body });
+    toast('搜索采集参数已保存，即时生效');
+    loadSearchConfig();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── 模型渠道 ──
+const CH_PRESETS = {
+  qwen: { base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', models: ['qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen-flash'], model: 'qwen-plus' },
+  deepseek: { base_url: 'https://api.deepseek.com/v1', models: ['deepseek-chat', 'deepseek-reasoner'], model: 'deepseek-chat' },
+  zhipu: { base_url: 'https://open.bigmodel.cn/api/paas/v4', models: ['glm-4.7-flash', 'glm-4.7', 'glm-5', 'glm-5.3'], model: 'glm-4.7-flash' },
+  custom: { base_url: '', models: [], model: '' },
+};
+
+// 供应商预设（后台可管理）：请求失败时回落内置
+let ADMIN_PRESETS = null;
+
+async function loadAdminPresets() {
+  try {
+    const r = await api('/admin/llm-presets');
+    ADMIN_PRESETS = {};
+    (r.items || []).forEach(i => { ADMIN_PRESETS[i.id] = i; });
+  } catch (e) { ADMIN_PRESETS = null; }
+  const sel = document.getElementById('chProvider');
+  const presets = ADMIN_PRESETS || CH_PRESETS;
+  if (sel) {
+    const cur = sel.value;
+    sel.innerHTML = Object.entries(presets)
+      .map(([id, p]) => `<option value="${esc(id)}">${esc(p.label || id)}</option>`).join('');
+    if (cur && presets[cur]) sel.value = cur;
+  }
+  return ADMIN_PRESETS;
+}
+
+function chOnProviderChange() {
+  const p = (ADMIN_PRESETS || CH_PRESETS)[document.getElementById('chProvider').value] || {};
+  document.getElementById('chModelList').innerHTML =
+    (p.models || []).map(m => `<option value="${esc(m)}"></option>`).join('');
+  document.getElementById('chModel').value = p.model || (p.models || [])[0] || '';
+  document.getElementById('chBase').value = p.base_url || '';
+}
+
+async function loadChannels() {
+  const grid = document.getElementById('chGrid');
+  try {
+    const r = await api('/admin/channels');
+    grid.innerHTML = r.items.map(i => `
+      <div class="ch-card ${i.id === r.active_id ? 'active' : ''}">
+        <div class="ch-label">${i.label || i.model}
+          ${i.id === r.active_id ? '<span class="ch-active-badge">使用中</span>' : ''}</div>
+        <div class="ch-row"><span>模型</span><b>${i.model}</b></div>
+        <div class="ch-row"><span>端点</span><b>${i.base_url}</b></div>
+        <div class="ch-row"><span>Key</span><b>${i.api_key}</b></div>
+        <div class="ch-actions">
+          ${i.id === r.active_id ? '' : `<button class="gy-btn" style="padding:6px 14px;font-size:12px" onclick="activateChannel('${i.id}')">启 用</button>`}
+          <button class="gy-btn" style="padding:6px 14px;font-size:12px" onclick="testChannel('${i.id}', this)">测试</button>
+          ${i.id === r.active_id ? '' : `<button class="gy-btn danger-btn" style="padding:6px 14px;font-size:12px" onclick="deleteChannel('${i.id}')">删除</button>`}
+        </div>
+      </div>`).join('') || '<div class="hint-err">还没有渠道，用下方表单添加</div>';
+    chOnProviderChange();
+  } catch (e) { grid.innerHTML = `<div class="hint-err">${e.message}</div>`; }
+}
+
+async function addChannel() {
+  const body = {
+    label: document.getElementById('chLabel').value.trim(),
+    provider: document.getElementById('chProvider').value,
+    api_key: document.getElementById('chKey').value.trim(),
+    model: document.getElementById('chModel').value,
+    base_url: document.getElementById('chBase').value.trim(),
+  };
+  if (!(body.api_key && body.base_url && body.model)) { toast('Key / 模型 / 地址都要填', 'err'); return; }
+  try {
+    await api('/admin/channels', { method: 'POST', body });
+    toast('渠道已添加');
+    document.getElementById('chKey').value = '';
+    loadChannels();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function activateChannel(cid) {
+  try {
+    const r = await api(`/admin/channels/${cid}/activate`, { method: 'POST' });
+    toast(`已全站切换：${r.model}`);
+    loadChannels();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function deleteChannel(cid) {
+  if (!confirm('确定删除该渠道？')) return;
+  try { await api(`/admin/channels/${cid}`, { method: 'DELETE' }); loadChannels(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
+async function testChannel(cid, btn) {
+  const old = btn.textContent;
+  btn.textContent = '测试中…'; btn.disabled = true;
+  try {
+    const r = await api(`/admin/channels/${cid}/test`, { method: 'POST' });
+    btn.textContent = r.ok ? '✓ 通' : '✗ 败';
+  } catch (e) { btn.textContent = '✗ 败'; }
+  btn.disabled = false;
+  setTimeout(() => { btn.textContent = old; }, 2500);
+}
+
+// ── 供应商预设（用户设置-模型服务 的厂家/地址/常用模型） ──
+function presetRowHtml(id, p, isNew) {
+  return `<tr data-preset-row>
+    <td><input class="gy-input2 pr-id" value="${esc(id)}" ${isNew ? '' : 'readonly'}
+      style="width:78px;font-family:ui-monospace,monospace;font-size:11px" title="供应商标识，保存后不可改"></td>
+    <td><input class="gy-input2 pr-label" value="${esc(p.label || '')}" style="width:150px" placeholder="如 DeepSeek"></td>
+    <td><input class="gy-input2 pr-base" value="${esc(p.base_url || '')}"
+      style="width:230px;font-family:ui-monospace,monospace;font-size:11px" placeholder="https://..."></td>
+    <td><input class="gy-input2 pr-models" value="${esc((p.models || []).join(', '))}"
+      style="width:250px" placeholder="m1, m2, m3"></td>
+    <td><input class="gy-input2 pr-def" value="${esc(p.model || '')}" style="width:115px" placeholder="默认选中"></td>
+    <td><button class="gy-btn danger-btn" style="padding:5px 10px;font-size:11px"
+      onclick="this.closest('tr').remove()">删除</button></td>
+  </tr>`;
+}
+
+function renderPresets() {
+  const tbody = document.getElementById('presetRows');
+  if (!tbody) return;
+  const presets = ADMIN_PRESETS || CH_PRESETS;
+  tbody.innerHTML = Object.entries(presets)
+    .map(([id, p]) => presetRowHtml(id, p, false)).join('');
+}
+
+function addPresetRow() {
+  document.getElementById('presetRows')
+    .insertAdjacentHTML('beforeend', presetRowHtml('', {}, true));
+}
+
+async function savePresets() {
+  const hint = document.getElementById('presetHint');
+  const items = [...document.querySelectorAll('#presetRows tr[data-preset-row]')].map(tr => {
+    const models = tr.querySelector('.pr-models').value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+    return {
+      id: tr.querySelector('.pr-id').value.trim(),
+      label: tr.querySelector('.pr-label').value.trim(),
+      base_url: tr.querySelector('.pr-base').value.trim(),
+      models,
+      model: tr.querySelector('.pr-def').value.trim() || models[0] || '',
+    };
+  });
+  if (!items.length) { hint.textContent = '至少保留一个供应商'; hint.className = 'llm-hint err'; return; }
+  if (items.some(i => !/^[a-z0-9_-]{2,24}$/.test(i.id))) {
+    hint.textContent = 'ID 仅限小写字母 / 数字 / 中划线，2-24 位（新增行才能填）';
+    hint.className = 'llm-hint err'; return;
+  }
+  if (items.some(i => !i.label)) { hint.textContent = '供应商名称不能为空'; hint.className = 'llm-hint err'; return; }
+  try {
+    await api('/admin/llm-presets', { method: 'PUT', body: { items } });
+    hint.textContent = '已保存，用户「设置-模型服务」即时生效';
+    hint.className = 'llm-hint ok';
+    await loadAdminPresets();
+  } catch (e) { hint.textContent = e.message; hint.className = 'llm-hint err'; }
+}
+
+// ── 场景审核 ──
+const SCENE_ST_NAME = { pending: '待审核', approved: '已上线', rejected: '未通过' };
+const SCENE_CHANNEL_NAME = { birds: '鸟鸣', stream: '溪流', wind: '风声', rain: '雨声', waves: '海浪', fire: '篝火' };
+let _reviewStatus = 'pending';
+
+function setReviewStatus(st) {
+  _reviewStatus = st;
+  document.querySelectorAll('.rv-fbtn').forEach(b => b.classList.toggle('active', b.dataset.st === st));
+  loadReviews();
+}
+
+async function loadReviews() {
+  const grid = document.getElementById('reviewGrid');
+  if (!grid) return;
+  try {
+    const r = await api(`/admin/scene-reviews?status=${_reviewStatus}`);
+    grid.innerHTML = r.items.map(i => `
+      <div class="review-card">
+        <img class="rv-img" src="${i.image_url || 'assets/scenes/forest-cabin.jpg'}" alt="" loading="lazy"
+          onerror="this.src='assets/scenes/forest-cabin.jpg'">
+        <div class="rv-body">
+          <div class="rv-name">${esc(i.name)}
+            <span class="rv-badge ${i.status}">${SCENE_ST_NAME[i.status] || i.status}</span>
+            ${i.visibility === 'private' ? '<span class="rv-badge" style="background:rgba(var(--line-rgb),0.08);color:rgba(var(--brand-rgb),0.45)">私人</span>' : ''}
+          </div>
+          <div class="rv-tag">${esc(i.tagline || '')}</div>
+          <div class="rv-meta">上传者 ${esc(i.uploader)} · ${(i.created_at || '').slice(0, 10)}${i.review_note ? ` · 驳回原因：${esc(i.review_note)}` : ''}</div>
+          <div class="rv-meta">音景：${(i.channels || []).map(c => SCENE_CHANNEL_NAME[c] || c).join(' / ') || '无'}</div>
+          <div class="rv-actions">
+            ${i.status !== 'approved' ? `<button class="gy-btn" style="padding:5px 12px;font-size:11.5px" onclick="reviewAct('${i.id}','approve')">✓ 通过上线</button>` : ''}
+            ${i.status !== 'rejected' ? `<button class="gy-btn" style="padding:5px 12px;font-size:11.5px" onclick="reviewAct('${i.id}','reject')">驳回</button>` : ''}
+            <button class="gy-btn danger-btn" style="padding:5px 12px;font-size:11.5px" onclick="reviewAct('${i.id}','delete')">删除</button>
+          </div>
+        </div>
+      </div>`).join('') || '<div class="hint-err">这个状态下暂无场景</div>';
+  } catch (e) { grid.innerHTML = `<div class="hint-err">${e.message}</div>`; }
+}
+
+async function reviewAct(id, action) {
+  try {
+    if (action === 'delete') {
+      if (!confirm('确定删除该场景？封面一并删除，不可恢复。')) return;
+      await api(`/admin/scene-reviews/${id}`, { method: 'DELETE' });
+      toast('场景已删除');
+    } else if (action === 'reject') {
+      const note = prompt('驳回原因（会展示给上传者，可留空）');
+      if (note === null) return;
+      await api(`/admin/scene-reviews/${id}/reject`, { method: 'POST', body: { note: note || '' } });
+      toast('已驳回');
+    } else {
+      await api(`/admin/scene-reviews/${id}/approve`, { method: 'POST', body: {} });
+      toast('已通过，场景上线广场');
+    }
+    loadReviews();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── 用户管理 ──
+async function loadUsers(delta) {
+  if (delta === -1 && _userPage > 1) _userPage--;
+  else if (delta === 1) _userPage++;
+  else if (delta === undefined) _userPage = 1;
+  const q = (document.getElementById('uq')?.value || '').trim();
+  try {
+    const r = await api(`/admin/users?page=${_userPage}&q=${encodeURIComponent(q)}`);
+    const maxPage = Math.max(1, Math.ceil(r.total / 20));
+    if (_userPage > maxPage) { _userPage = maxPage; return loadUsers(); }
+    document.getElementById('userPageInfo').textContent = `第 ${_userPage} / ${maxPage} 页 · 共 ${r.total} 人`;
+    document.getElementById('userRows').innerHTML = r.items.map(u => {
+      const q = u.quota;
+      const pill = (label, s) => {
+        const rem = Math.max(0, s.limit - s.used);
+        return `<span class="q-pill ${rem === 0 ? 'low' : ''}">${label} ${rem}/${s.limit}</span>`;
+      };
+      const quotaCells = q
+        ? `<td>${pill('报告', q.report)}</td><td>${pill('对话', q.chat)}</td><td>${pill('自习', q.study)}</td><td>${pill('模板', q.template)}</td>`
+        : '<td colspan="4" style="color:rgba(var(--brand-rgb),0.3)">未初始化</td>';
+      const keyCell = u.byok
+        ? `<span class="byok-tag">已配置</span> <button class="gy-btn" style="padding:4px 9px;font-size:11px" onclick="viewUserKey('${u.id}', this)">查看</button>`
+        : '—';
+      const isSelf = u.id === (USER?.id || '');
+      const roleBtn = isSelf
+        ? '<span style="font-size:11px;color:rgba(var(--brand-rgb),0.3)">本人</span>'
+        : `<button class="gy-btn ${u.is_admin ? 'danger-btn' : ''}" style="padding:5px 10px;font-size:11.5px" onclick="openSetRole('${u.id}','${(u.nickname || u.username).replace(/'/g, '')}',${!!u.is_admin})">${u.is_admin ? '取消管理员' : '设为管理员'}</button>`;
+      return `<tr>
+        <td>${u.nickname || u.username}${u.is_admin ? ' <span class="byok-tag">管理员</span>' : ''}<div style="font-size:11px;color:rgba(var(--brand-rgb),0.3)">${u.username}</div></td>
+        <td>${(u.created_at || '').slice(0, 10)}</td>
+        ${quotaCells}
+        <td>${keyCell}</td>
+        <td style="white-space:normal"><div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="gy-btn" style="padding:5px 10px;font-size:11.5px" onclick="openGrant('${u.id}','${(u.nickname || u.username).replace(/'/g, '')}')">加额度</button>
+          ${roleBtn}
+        </div></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" style="color:rgba(var(--brand-rgb),0.3)">无匹配用户</td></tr>';
+  } catch (e) {
+    document.getElementById('userRows').innerHTML = `<tr><td colspan="8">${e.message}</td></tr>`;
+  }
+}
+
+function closeKeyPop() { document.getElementById('keyPop')?.remove(); }
+
+async function viewUserKey(userId, btn, ev) {
+  ev?.stopPropagation();
+  const existing = document.getElementById('keyPop');
+  if (existing) { existing.remove(); return; }   // 再点一次收起
+  // 加载态浮层（fixed 定位，不改动表格布局）
+  const br = btn.getBoundingClientRect();
+  const pop = document.createElement('div');
+  pop.id = 'keyPop';
+  pop.style.cssText = `position:fixed;z-index:450;left:${Math.round(br.left)}px;top:${Math.round(br.bottom + 8)}px;
+    background:rgba(var(--panel-rgb),0.98);backdrop-filter:blur(18px);border:1px solid rgba(var(--brand-rgb),0.18);
+    border-radius:12px;padding:12px 14px;box-shadow:0 14px 44px rgba(0,0,0,.45);
+    font-size:11.5px;color:rgba(var(--brand-rgb),0.75);max-width:320px`;
+  pop.innerHTML = '<div style="font-family:ui-monospace,monospace">加载中…</div>';
+  document.body.appendChild(pop);
+  try {
+    const r = await api(`/admin/users/${userId}/key`);
+    pop.innerHTML = `
+      <div style="font-weight:600;margin-bottom:6px;color:rgba(var(--brand-rgb),0.9)">${r.username} 的自有 Key</div>
+      <div style="font-family:ui-monospace,monospace;font-size:11px;word-break:break-all;line-height:1.7">
+        <div>${r.model}</div><div>${r.api_key}</div></div>`;
+    const pr = pop.getBoundingClientRect();
+    let top = br.top - pr.height - 8;              // 默认在按钮上方
+    if (top < 10) top = br.bottom + 8;             // 放不下则下方
+    pop.style.top = Math.max(10, top) + 'px';
+    pop.style.left = Math.max(10, Math.min(br.left, window.innerWidth - pr.width - 12)) + 'px';
+  } catch (e) {
+    pop.remove();
+    toast(e.message, 'err');
+    return;
+  }
+  // 点浮层外部关闭（按钮自身已 stopPropagation）
+  setTimeout(() => document.addEventListener('click', function h(ev2) {
+    if (!pop.contains(ev2.target)) { pop.remove(); document.removeEventListener('click', h); }
+  }), 0);
+}
+
+let _grantTarget = null;
+function openGrant(userId, name) {
+  _grantTarget = userId;
+  const overlay = document.createElement('div');
+  overlay.id = 'grantOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="width:min(360px,calc(100vw - 32px));background:rgba(var(--panel-rgb),0.97);border:1px solid rgba(var(--brand-rgb),0.14);border-radius:16px;padding:22px 24px;backdrop-filter:blur(20px)">
+      <h3 style="font-family:ui-serif,Georgia,serif;font-size:16px;margin-bottom:14px">给 ${name} 加次数</h3>
+      <div class="form-row" style="flex-direction:column;align-items:stretch;gap:12px">
+        <label>报告 +<input class="gy-input2" id="gReport" type="number" value="0" min="0"></label>
+        <label>择校对话 +<input class="gy-input2" id="gChat" type="number" value="0" min="0"></label>
+        <label>自习室对话 +<input class="gy-input2" id="gStudy" type="number" value="0" min="0"></label>
+        <label>自定义场景 +<input class="gy-input2" id="gTpl" type="number" value="0" min="0"></label>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="gy-btn" style="padding:7px 14px" onclick="document.getElementById('grantOverlay').remove()">取消</button>
+        <button class="gy-btn" style="padding:7px 14px;background:rgba(109,179,163,0.16);border-color:rgba(109,179,163,0.4);color:var(--accent,#6db3a3)" onclick="doGrant()">确认发放</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function doGrant() {
+  if (!_grantTarget) return;
+  try {
+    await api(`/admin/users/${_grantTarget}/quota`, { method: 'POST', body: {
+      report_add: +(document.getElementById('gReport')?.value || 0),
+      chat_add: +(document.getElementById('gChat')?.value || 0),
+      study_add: +(document.getElementById('gStudy')?.value || 0),
+      template_add: +(document.getElementById('gTpl')?.value || 0),
+    }});
+    toast('额度已发放');
+    document.getElementById('grantOverlay')?.remove();
+    loadUsers();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── 管理员角色开关（密码二次确认 + 审计） ──
+let _roleTarget = null;
+function openSetRole(userId, name, currAdmin) {
+  _roleTarget = { id: userId, promote: !currAdmin, name };
+  const overlay = document.createElement('div');
+  overlay.id = 'roleOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="width:min(380px,calc(100vw - 32px));background:rgba(var(--panel-rgb),0.97);border:1px solid rgba(var(--brand-rgb),0.14);border-radius:16px;padding:22px 24px;backdrop-filter:blur(20px)">
+      <h3 style="font-family:ui-serif,Georgia,serif;font-size:16px;margin-bottom:10px">${currAdmin ? `取消 ${name} 的管理员` : `把 ${name} 设为管理员`}</h3>
+      <p style="font-size:12px;color:rgba(var(--brand-rgb),0.5);line-height:1.7">该操作立即生效并记入审计。为防止会话被盗用后顺手提权，请输入<b>你自己的登录密码</b>确认。</p>
+      <input class="gy-input2" id="rolePwd" type="password" placeholder="你的登录密码" style="width:100%;margin-top:12px" autocomplete="off">
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+        <button class="gy-btn" style="padding:7px 14px" onclick="document.getElementById('roleOverlay').remove()">取消</button>
+        <button class="gy-btn" style="padding:7px 14px;background:rgba(109,179,163,0.16);border-color:rgba(109,179,163,0.4);color:var(--accent,#6db3a3)" onclick="doSetRole()">确认操作</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const pwd = document.getElementById('rolePwd');
+  pwd.focus();
+  pwd.addEventListener('keydown', e => { if (e.key === 'Enter') doSetRole(); });
+}
+
+async function doSetRole() {
+  if (!_roleTarget) return;
+  const pwd = document.getElementById('rolePwd')?.value || '';
+  if (!pwd) { toast('请输入你的登录密码', 'err'); return; }
+  try {
+    const r = await api(`/admin/users/${_roleTarget.id}/role`, { method: 'POST', body: {
+      is_admin: _roleTarget.promote, confirm_password: pwd,
+    }});
+    toast(r.is_admin ? `已将 ${r.username} 设为管理员` : `已取消 ${r.username} 的管理员`);
+    document.getElementById('roleOverlay')?.remove();
+    _roleTarget = null;
+    loadUsers();
+    loadRoleAudit();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function loadRoleAudit() {
+  const tbody = document.getElementById('roleAuditRows');
+  if (!tbody) return;
+  try {
+    const r = await api('/admin/role-audit');
+    tbody.innerHTML = r.items.map(a => `<tr>
+      <td>${(a.created_at || '').slice(0, 16).replace('T', ' ')}</td>
+      <td>${esc(a.actor_username)}</td>
+      <td>${esc(a.target_username)}</td>
+      <td>${a.action === 'promote'
+        ? '<span class="byok-tag">设为管理员</span>'
+        : '<span style="color:#e67864;font-size:11px">取消管理员</span>'}</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:rgba(var(--brand-rgb),0.3)">暂无变动记录</td></tr>';
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4">${e.message}</td></tr>`;
+  }
+}
+
+// ── 兑换码 ──
+async function createCodes() {
+  try {
+    const r = await api('/admin/codes', { method: 'POST', body: {
+      count: +(document.getElementById('cCount')?.value || 1),
+      report_add: +(document.getElementById('cReport')?.value || 0),
+      chat_add: +(document.getElementById('cChat')?.value || 0),
+      study_add: +(document.getElementById('cStudy')?.value || 0),
+      template_add: +(document.getElementById('cTpl')?.value || 0),
+      max_uses: +(document.getElementById('cMax')?.value || 1),
+      note: (document.getElementById('cNote')?.value || '').trim(),
+    }});
+    const out = document.getElementById('codesOut');
+    out.style.display = 'block';
+    out.innerHTML = `<b>已生成 ${r.codes.length} 个码（点击复制）：</b><br>` +
+      r.codes.map(c => `<span style="cursor:pointer" onclick="navigator.clipboard.writeText('${c}');toast('已复制 ${c}')">${c}</span>`).join('　');
+    loadCodes();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function loadCodes() {
+  try {
+    const r = await api('/admin/codes');
+    document.getElementById('codeRows').innerHTML = r.items.map(c => `<tr>
+      <td style="font-family:ui-monospace,monospace">${c.code}</td>
+      <td>报告 +${c.report_add} · 对话 +${c.chat_add} · 自习 +${c.study_add} · 场景 +${c.template_add}</td>
+      <td>${c.used_count} / ${c.max_uses}</td>
+      <td>${c.note || '—'}</td>
+      <td>${(c.created_at || '').slice(0, 16).replace('T', ' ')}</td>
+    </tr>`).join('') || '<tr><td colspan="5" style="color:rgba(var(--brand-rgb),0.3)">还没有生成过兑换码</td></tr>';
+  } catch (e) { /* ignore */ }
+}
+
+// ── 数据存量 ──
+async function loadInventory() {
+  try {
+    const d = await api('/admin/data-inventory');
+    const card = (k, v, sub) => `<div class="stat-card"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub || ''}</div></div>`;
+    document.getElementById('invStats').innerHTML =
+      card('实时舆情帖', d.posts.real, `已打标 ${d.posts.labeled} · 覆盖 ${(d.posts.span[0] || '?')} ~ ${(d.posts.span[1] || '?')}`) +
+      card('演示帖（demo 视角）', d.posts.demo, '与实时库隔离') +
+      card('院校 / 专业 / 交叉', `${d.reference.schools} / ${d.reference.majors} / ${d.reference.pairs}`, '基础参考库') +
+      card('分数线 / 招生', `${d.official.score_lines} / ${d.official.enrollments}`, '官方数据') +
+      card('日聚合 / 指标快照', `${d.metrics.daily_stats} / ${d.metrics.snapshots}`, '预计算指标') +
+      card('库文件体积', d.storage_mb + ' MB', 'SQLite');
+    document.getElementById('invPlatforms').innerHTML =
+      d.posts.by_platform.map(p => `<span class="q-pill">${p.platform} ${p.count}</span>`).join(' ') || '暂无';
+    document.getElementById('invContrib').innerHTML = d.contributors.length
+      ? d.contributors.map(c => `<span class="q-pill">${c.username} 贡献 ${c.count} 条</span>`).join(' ')
+      : '暂无贡献记录';
+    const auths = await api('/admin/platform-auths');
+    const PL = { zhihu: '知乎', xhs: '小红书', tieba: '贴吧', douyin: '抖音', wb: '微博', bili: 'B站' };
+    document.getElementById('invAuthRows').innerHTML = auths.items.map(a => `<tr>
+      <td>${a.username}</td><td>${PL[a.platform] || a.platform}</td>
+      <td>${a.status === 'active' ? '<span class="byok-tag">有效</span>' : '<span class="q-pill low">疑似过期</span>'}</td>
+      <td style="font-family:ui-monospace,monospace">${a.cookie_masked}</td>
+      <td>${(a.last_used_at || '').slice(0, 16).replace('T', ' ') || '—'}</td>
+      <td>${(a.updated_at || '').slice(0, 16).replace('T', ' ')}</td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:rgba(var(--brand-rgb),0.3)">还没有用户配置平台授权</td></tr>';
+  } catch (e) { /* ignore */ }
+}
+
+// ── 用量统计 ──
+async function loadUsage() {
+  try {
+    const r = await api('/admin/usage');
+    document.getElementById('usageRows').innerHTML = r.by_scene.map(row => `<tr>
+      <td>${SCENE_NAME[row.scene] || row.scene}</td>
+      <td>${SOURCE_NAME[row.source] || row.source}</td>
+      <td>${row.calls}</td>
+      <td>${fmtNum(row.tokens)}</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:rgba(var(--brand-rgb),0.3)">暂无调用记录</td></tr>';
+    const el = document.getElementById('donutChart');
+    if (el && typeof echarts !== 'undefined' && r.by_scene.length) {
+      _donutChart = _donutChart || echarts.init(el);
+      const palette = ['#6db3a3', '#e6b46e', '#c9a86a', '#9c8f7f', '#8fb3cc', '#a13d2c'];
+      _donutChart.setOption({
+        tooltip: { trigger: 'item' },
+        legend: { bottom: 0, textStyle: { color: 'rgba(244,231,211,0.55)', fontSize: 11 } },
+        series: [{
+          type: 'pie', radius: ['42%', '68%'], center: ['50%', '44%'],
+          data: r.by_scene.map((row, i) => ({
+            name: `${SCENE_NAME[row.scene] || row.scene} · ${SOURCE_NAME[row.source] || row.source}`,
+            value: row.calls, itemStyle: { color: palette[i % palette.length] },
+          })),
+          label: { color: 'rgba(244,231,211,0.65)', fontSize: 11 },
+        }],
+      });
+    } else if (el) {
+      el.innerHTML = '<div class="hint-err">暂无调用记录</div>';
+    }
+  } catch (e) { /* ignore */ }
+}
+
+window.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>

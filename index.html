@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<title>研屿 | 于信息汪洋，筑备考之屿</title>
+<style>
+:root {
+  --bg-primary: var(--bg);
+  --bg-glass: rgba(var(--line-rgb), 0.06);
+  --bg-glass-hover: rgba(var(--line-rgb), 0.10);
+  --bg-glass-strong: rgba(var(--line-rgb), 0.08);
+
+  --ink-warm: rgba(var(--brand-rgb), 0.88);
+  --ink-warm-full: rgba(var(--brand-rgb), 1);
+  --ink-soft: rgba(var(--line-rgb), 0.48);
+  --ink-muted: rgba(var(--line-rgb), 0.32);
+  --ink-faint: rgba(var(--line-rgb), 0.18);
+
+  --border-glass: rgba(var(--line-rgb), 0.10);
+  --border-glass-strong: rgba(var(--line-rgb), 0.16);
+
+  --font-display: ui-serif, Georgia, Cambria, "Times New Roman", Times, "Noto Serif SC", serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.35rem;
+  --radius-full: 9999px;
+
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* 双主题变量（与全站一致；本页自包含样式引用） */
+:root, [data-theme="dark"] {
+  --brand-rgb: 244, 231, 211;
+  --line-rgb: 255, 255, 255;
+  --bg-rgb: 38, 35, 34;
+  --accent: #6db3a3;
+}
+[data-theme="light"] {
+  --brand-rgb: 61, 55, 48;
+  --line-rgb: 0, 0, 0;
+  --bg-rgb: 250, 247, 241;
+  --accent: #0e6e63;
+}
+html { background: var(--bg-primary); }
+
+html, body {
+  min-height: 100%;
+  background: var(--bg-primary);
+  font-family: var(--font-sans);
+  color: var(--ink-warm);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ============================================
+   Scene
+   ============================================ */
+.scene {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* ── Sky ── */
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(var(--brand-rgb),0.04) 0%, transparent 40%),
+    radial-gradient(circle at 85% 25%, rgba(180,200,240,0.03) 0%, transparent 35%),
+    linear-gradient(180deg,
+      rgba(var(--bg-rgb), 1) 0%,
+      rgba(var(--bg-rgb), 0.95) 25%,
+      rgba(var(--bg-rgb), 0.92) 45%,
+      rgba(var(--bg-rgb), 0.97) 65%,
+      rgba(var(--bg-rgb), 1) 100%
+    );
+}
+
+/* ── Stars ── */
+.stars {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(var(--brand-rgb), 0.7);
+  animation: twinkle var(--dur, 4s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.85; }
+}
+
+/* ── Moon ── */
+.moon {
+  position: fixed;
+  top: 10%;
+  right: 18%;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%,
+    rgba(var(--brand-rgb), 0.20) 0%,
+    rgba(var(--brand-rgb), 0.06) 50%,
+    transparent 70%
+  );
+  box-shadow: 0 0 60px 20px rgba(var(--brand-rgb), 0.04);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ── Scene SVG ── */
+.scene-art {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 55%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── Water ── */
+.water {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 22%;
+  z-index: 3;
+  background: linear-gradient(180deg,
+    rgba(var(--bg-rgb), 0) 0%,
+    rgba(var(--bg-rgb), 0.3) 30%,
+    rgba(var(--bg-rgb), 0.5) 100%
+  );
+  pointer-events: none;
+}
+
+.water::before {
+  content: '';
+  position: absolute;
+  top: 15%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 5%,
+    rgba(var(--brand-rgb), 0.04) 30%,
+    rgba(var(--brand-rgb), 0.06) 50%,
+    rgba(var(--brand-rgb), 0.04) 70%,
+    transparent 95%
+  );
+}
+
+/* ── Ambient Glow ── */
+.ambient {
+  position: fixed;
+  bottom: 25%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 350px;
+  background: radial-gradient(ellipse,
+    rgba(var(--brand-rgb), 0.025) 0%,
+    transparent 65%
+  );
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* ── Mist ── */
+.mist {
+  position: fixed;
+  bottom: 18%;
+  left: 0;
+  width: 100%;
+  height: 80px;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(var(--brand-rgb), 0.012) 50%,
+    transparent 100%
+  );
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* ── SVG Scene Theme Colors ── */
+.shimmer-line {
+  stroke: rgba(var(--brand-rgb), 0.04);
+}
+[data-theme="light"] .shimmer-line {
+  stroke: rgba(var(--line-rgb), 0.06);
+}
+
+.island-silhouette {
+  fill: #080807;
+}
+[data-theme="light"] .island-silhouette {
+  fill: #c8c0b4;
+}
+
+.terrain-ridge {
+  stroke: rgba(244, 231, 211, 0.02);
+}
+[data-theme="light"] .terrain-ridge {
+  stroke: rgba(0, 0, 0, 0.04);
+}
+
+.island-trees {
+  fill: #0a0a09;
+}
+[data-theme="light"] .island-trees {
+  fill: #b0a89c;
+}
+
+.lighthouse rect {
+  fill: #0c0c0b;
+}
+[data-theme="light"] .lighthouse rect {
+  fill: #a8a096;
+}
+
+.cabin rect,
+.cabin polygon {
+  fill: #0c0c0b;
+}
+[data-theme="light"] .cabin rect,
+[data-theme="light"] .cabin polygon {
+  fill: #a8a096;
+}
+
+.path-dashed {
+  stroke: rgba(244, 231, 211, 0.03);
+}
+[data-theme="light"] .path-dashed {
+  stroke: rgba(0, 0, 0, 0.05);
+}
+
+.cabin-window {
+  fill: #f4e7d3;
+}
+[data-theme="light"] .cabin-window {
+  fill: #8b7355;
+}
+
+/* ============================================
+   Content
+   ============================================ */
+.content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 880px;
+  min-height: 100vh;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Brand ── */
+.brand {
+  margin-top: clamp(44px, 9vh, 120px);
+  text-align: center;
+  animation: fadeUp 1.2s var(--ease-out) both;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-size: clamp(36px, 6vw, 52px);
+  font-weight: 600;
+  color: var(--ink-warm-full);
+  letter-spacing: 0.15em;
+  margin-bottom: 16px;
+}
+
+.brand-divider {
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-glass-strong), transparent);
+  margin: 0 auto 16px;
+}
+
+.brand-slogan {
+  font-family: var(--font-display);
+  font-size: clamp(14px, 2vw, 16px);
+  color: var(--ink-soft);
+  letter-spacing: 0.12em;
+  font-weight: 400;
+}
+
+.brand-desc {
+  margin-top: 22px;
+  font-size: 13px;
+  color: var(--ink-muted);
+  line-height: 2;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Spacer ── */
+.spacer { flex: 0 0 auto; min-height: 22px; max-height: 40px; }
+
+/* ── Paths ── */
+.paths {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+  margin-bottom: 26px;
+  animation: fadeUp 1.2s var(--ease-out) 0.3s both;
+}
+
+.path-card {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  padding: 46px 30px 36px;
+  text-align: center;
+  border-radius: var(--radius-xl);
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border-glass);
+  transition:
+    transform var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out),
+    background var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.path-card::before {
+  content: '';
+  position: absolute;
+  top: -70px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 130px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(230,180,110,0.12) 0%, transparent 70%);
+  opacity: 0.5;
+  transition: opacity var(--duration-normal) var(--ease-out);
+  pointer-events: none;
+}
+
+[data-theme="light"] .path-card::before { opacity: 0.3; }
+
+.path-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(var(--brand-rgb), 0.30);
+  background: var(--bg-glass-hover);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+}
+
+.path-card:hover::before { opacity: 1; }
+
+.path-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--ink-warm-full);
+  margin-bottom: 8px;
+}
+
+.path-en {
+  font-size: 10px;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 14px;
+}
+
+.path-desc {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.8;
+}
+
+.path-go {
+  margin-top: 26px;
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  color: rgba(var(--brand-rgb), 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .28s var(--ease-out), transform .28s var(--ease-out);
+}
+
+.path-go::before, .path-go::after {
+  content: '';
+  width: 30px;
+  height: 1px;
+  background: rgba(var(--brand-rgb), 0.3);
+}
+
+.path-card:hover .path-go { opacity: 1; transform: none; }
+
+
+  /* ── Footer ── */
+.foot {
+  text-align: center;
+  padding-bottom: 18px;
+  animation: fadeUp 1.2s var(--ease-out) 0.6s both;
+}
+
+.foot-hint {
+  font-size: 12px;
+  color: var(--ink-faint);
+  letter-spacing: 0.08em;
+}
+
+.foot-line {
+  width: 24px;
+  height: 1px;
+  background: var(--border-glass);
+  margin: 12px auto 0;
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* About trigger - top right */
+.about-trigger {
+  position: fixed;
+  top: 24px;
+  right: 28px;
+  z-index: 100;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(var(--line-rgb), 0.06);
+  border: 1px solid rgba(var(--line-rgb), 0.10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(var(--brand-rgb), 0.40);
+  transition: all 0.25s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  text-decoration: none;
+}
+
+.about-trigger:hover {
+  background: rgba(var(--line-rgb), 0.12);
+  border-color: rgba(var(--line-rgb), 0.18);
+  color: rgba(var(--brand-rgb), 0.75);
+  transform: scale(1.05);
+}
+
+/* 登录入口（未登录时显示） */
+.login-trigger {
+  position: fixed;
+  top: 24px;
+  right: 76px;
+  z-index: 100;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(var(--line-rgb), 0.06);
+  border: 1px solid rgba(var(--line-rgb), 0.10);
+  color: rgba(var(--brand-rgb), 0.60);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.25s ease;
+}
+.login-trigger:hover {
+  background: rgba(var(--brand-rgb), 0.12);
+  border-color: rgba(var(--brand-rgb), 0.25);
+  color: rgba(var(--brand-rgb), 0.95);
+}
+
+.about-trigger svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ── Responsive ── */
+/* 矮屏适配：保证主页严格一屏、不出现滚动条 */
+@media (max-height: 800px) {
+  .brand { margin-top: clamp(24px, 5.5vh, 56px); }
+  .spacer { min-height: 12px; }
+  .path-card { padding: 34px 24px 26px; }
+  .path-title { font-size: 21px; }
+  .paths { gap: 14px; margin-bottom: 18px; }
+  .foot { padding-bottom: 12px; }
+}
+@media (max-height: 700px) {
+  .brand { margin-top: 14px; }
+  .brand-name { font-size: clamp(28px, 5vw, 38px); }
+  .path-card { padding: 26px 20px 20px; }
+  .path-title { font-size: 18px; }
+  .path-desc { font-size: 12px; }
+  .paths { margin-bottom: 12px; }
+  .foot { padding-bottom: 8px; }
+}
+@media (max-width: 640px) {
+  .content { padding: 0 16px; }
+  .paths {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .path-card { padding: 34px 20px 28px; }
+  .brand-name { letter-spacing: 0.1em; }
+  .moon { display: none; }
+  .about-trigger {
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+  }
+  .login-trigger {
+    top: 16px;
+    right: 58px;
+  }
+  .about-trigger svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* ── DEMO MODE Badge ── */
+.demo-badge {
+  position: fixed; bottom: 16px; right: 16px; z-index: 99999;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1a1a1a; background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+  pointer-events: none; user-select: none;
+  animation: demoBadgePulse 3s ease-in-out infinite;
+}
+@keyframes demoBadgePulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@media (max-width: 767px) {
+  .demo-badge { bottom: 72px; right: 10px; font-size: 10px; padding: 5px 10px; }
+}
+
+</style>
+</head>
+<body>
+<div class="demo-badge">DEMO MODE</div>
+<script>
+  try { document.documentElement.setAttribute('data-theme', localStorage.getItem('gy_theme') || 'dark'); } catch (e) {}
+</script>
+
+<div class="scene">
+  <!-- Login trigger（未登录时显示） -->
+  <a href="login.html" class="login-trigger" id="loginChip">登录 / 注册</a>
+
+  <!-- About trigger -->
+  <a href="about.html" class="about-trigger" title="关于研屿">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  </a>
+
+  <!-- Sky -->
+  <div class="sky"></div>
+
+  <!-- Stars -->
+  <div class="stars" id="stars"></div>
+
+  <!-- Moon -->
+  <div class="moon"></div>
+
+  <!-- Island Scene SVG -->
+  <svg class="scene-art" viewBox="0 0 1920 600" preserveAspectRatio="xMidYMax slice">
+    <defs>
+      <radialGradient id="glowLighthouse" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#ffcc66" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#ffcc66" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="glowCabin" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="rgb(var(--brand-rgb))" stop-opacity="0.25"/>
+        <stop offset="100%" stop-color="rgb(var(--brand-rgb))" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgb(var(--bg-rgb))" stop-opacity="0.15"/>
+        <stop offset="100%" stop-color="rgb(var(--bg-rgb))" stop-opacity="0.5"/>
+      </linearGradient>
+      <linearGradient id="beamGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ffcc66" stop-opacity="0.12"/>
+        <stop offset="100%" stop-color="#ffcc66" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+
+    <!-- Water -->
+    <rect x="0" y="320" width="1920" height="280" fill="url(#waterGrad)"/>
+
+    <!-- Water shimmer lines -->
+    <line class="shimmer-line" x1="200" y1="400" x2="500" y2="400" stroke-width="0.5"/>
+    <line class="shimmer-line" x1="700" y1="430" x2="1100" y2="430" stroke-width="0.5"/>
+    <line class="shimmer-line" x1="1300" y1="410" x2="1700" y2="410" stroke-width="0.5"/>
+    <line class="shimmer-line" x1="400" y1="460" x2="800" y2="460" stroke-width="0.5"/>
+    <line class="shimmer-line" x1="1000" y1="480" x2="1500" y2="480" stroke-width="0.5"/>
+
+    <!-- Island silhouette -->
+    <path class="island-silhouette" d="
+      M 0,600
+      L 0,420
+      C 100,415 250,400 400,380
+      C 500,365 580,340 680,300
+      C 750,275 820,255 900,248
+      C 960,243 1000,245 1060,252
+      C 1140,262 1220,285 1320,310
+      C 1420,340 1520,365 1640,385
+      C 1760,405 1860,418 1920,420
+      L 1920,600 Z
+    "/>
+
+    <!-- Terrain texture - subtle ridge -->
+    <path class="terrain-ridge" d="
+      M 400,380
+      C 480,370 540,352 620,325
+      C 680,305 740,280 820,260
+      C 880,248 940,246 1000,248
+    " fill="none" stroke-width="1"/>
+
+    <!-- Trees on island - simple triangles -->
+    <g class="island-trees" opacity="0.8">
+      <polygon points="520,350 525,320 530,350"/>
+      <polygon points="555,340 560,308 565,340"/>
+      <polygon points="590,328 596,295 602,328"/>
+      <polygon points="750,270 756,240 762,270"/>
+      <polygon points="780,262 785,235 790,262"/>
+      <polygon points="1100,260 1106,232 1112,260"/>
+      <polygon points="1140,270 1145,244 1150,270"/>
+      <polygon points="1200,288 1206,258 1212,288"/>
+      <polygon points="1350,320 1356,292 1362,320"/>
+      <polygon points="1390,332 1395,305 1400,332"/>
+    </g>
+
+    <!-- Lighthouse structure -->
+    <g class="lighthouse">
+      <!-- Base -->
+      <rect x="862" y="210" width="16" height="40" rx="1"/>
+      <!-- Tower -->
+      <rect x="865" y="175" width="10" height="38" rx="1"/>
+      <!-- Lamp room -->
+      <rect x="863" y="168" width="14" height="10" rx="2"/>
+      <!-- Light -->
+      <circle cx="870" cy="173" r="3" fill="#ffcc66" opacity="0.9"/>
+      <!-- Light glow -->
+      <circle cx="870" cy="173" r="40" fill="url(#glowLighthouse)" opacity="0.8">
+        <animate attributeName="opacity" values="0.6;1;0.6" dur="4s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Beam -->
+      <polygon points="870,173 820,80 920,80" fill="url(#beamGrad)" opacity="0.3">
+        <animate attributeName="opacity" values="0.2;0.4;0.2" dur="4s" repeatCount="indefinite"/>
+      </polygon>
+    </g>
+
+    <!-- Cabin -->
+    <g class="cabin">
+      <!-- Walls -->
+      <rect x="1060" y="238" width="28" height="18" rx="1"/>
+      <!-- Roof -->
+      <polygon points="1055,238 1074,222 1093,238"/>
+      <!-- Window glow -->
+      <rect class="cabin-window" x="1068" y="243" width="6" height="6" rx="0.5" opacity="0.35">
+        <animate attributeName="opacity" values="0.25;0.45;0.25" dur="5s" repeatCount="indefinite"/>
+      </rect>
+      <!-- Cabin glow -->
+      <circle cx="1074" cy="245" r="35" fill="url(#glowCabin)" opacity="0.7">
+        <animate attributeName="opacity" values="0.5;0.8;0.5" dur="5s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <!-- Path between lighthouse and cabin -->
+    <path class="path-dashed" d="M 880,248 Q 960,255 1060,252" fill="none" stroke-width="1" stroke-dasharray="4,6"/>
+
+    <!-- Water reflections -->
+    <ellipse cx="870" cy="380" rx="25" ry="3" fill="#ffcc66" opacity="0.03">
+      <animate attributeName="rx" values="20;30;20" dur="4s" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="1074" cy="370" rx="18" ry="2" fill="#f4e7d3" opacity="0.02">
+      <animate attributeName="rx" values="15;22;15" dur="5s" repeatCount="indefinite"/>
+    </ellipse>
+  </svg>
+
+  <!-- Water overlay -->
+  <div class="water"></div>
+
+  <!-- Ambient glow -->
+  <div class="ambient"></div>
+
+  <!-- Mist -->
+  <div class="mist"></div>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- Brand -->
+    <div class="brand">
+      <h1 class="brand-name">研 屿</h1>
+      <div class="brand-divider"></div>
+      <p class="brand-slogan">于信息汪洋，筑备考之屿</p>
+      <p class="brand-desc">
+        在考研信息洪流扑面、各路观点交织、海量信息难以分辨的世界里，
+        拨开迷雾找寻到你的归处——隔绝尘世嘈杂的小小岛屿，是你最好的归宿。
+        研屿为您与理想岛屿架桥，望您在浩如烟海中稳稳上岸，抵达梦想岛屿。
+      </p>
+    </div>
+
+    <div class="spacer"></div>
+
+    <!-- Two Paths -->
+    <div class="paths">
+      <!-- Path 1: 舆情分析 -->
+      <a class="path-card" href="dashboard.html">
+        <div class="path-title">研澜 · 舆情分析</div>
+        <div class="path-en">Insight</div>
+        <div class="path-desc">拨开舆论迷雾，看清真实竞争格局</div>
+        <div class="path-go">进入</div>
+      </a>
+
+      <!-- Path 2: 自习室 -->
+      <a class="path-card" href="study-room.html">
+        <div class="path-title">筑屿 · 自习室</div>
+        <div class="path-en">Immersion</div>
+        <div class="path-desc">戴上耳机，专注当下最重要的事情</div>
+        <div class="path-go">进入</div>
+      </a>
+
+      </div>
+
+    <!-- Footer -->
+    <div class="foot">
+      <div class="foot-hint">选择你的路径</div>
+      <div class="foot-line"></div>
+    </div>
+  </div>
+</div>
+
+<script src="mock-api.js"></script>
+<script>window.GY_PUBLIC_PAGE = true; // 主页公开：app.js 只做主题，不做登录拦截</script>
+<script src="assets/app.js?v=18"></script>
+
+<script>
+// Generate stars
+(function() {
+  var container = document.getElementById('stars');
+  var count = 80;
+  for (var i = 0; i < count; i++) {
+    var star = document.createElement('div');
+    star.className = 'star';
+    var size = Math.random() * 2 + 0.5;
+    star.style.width = size + 'px';
+    star.style.height = size + 'px';
+    star.style.left = Math.random() * 100 + '%';
+    star.style.top = Math.random() * 55 + '%';
+    star.style.setProperty('--dur', (3 + Math.random() * 5) + 's');
+    star.style.setProperty('--delay', (Math.random() * 5) + 's');
+    if (Math.random() > 0.7) {
+      star.style.background = 'rgba(200, 210, 240, 0.6)';
+    }
+    container.appendChild(star);
+  }
+})();
+
+// 登录入口：已登录则隐藏
+try { if (localStorage.getItem('gy_token')) document.getElementById('loginChip').style.display = 'none'; } catch (e) {}
+
+</script>
+
+</body>
+</html>

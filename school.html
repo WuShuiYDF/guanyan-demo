@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>院校详情 | 研屿</title>
+<script src="mock-api.js"></script>
+<script src="assets/vendor/echarts.min.js"></script>
+<link rel="stylesheet" href="assets/app.css?v=10">
+<style>
+.detail-hero {
+  display: flex; align-items: center; gap: 18px; padding: 20px 22px; margin-bottom: 18px;
+  border-radius: 14px; background: rgba(var(--line-rgb), 0.04);
+  border: 1px solid rgba(var(--line-rgb), 0.08);
+}
+.detail-hero h2 { font-size: 22px; color: rgba(var(--brand-rgb), 0.95); }
+.detail-meta { margin-top: 6px; font-size: 13px; color: rgba(var(--brand-rgb), 0.5); display: flex; gap: 10px; flex-wrap: wrap; }
+.detail-intro { margin-top: 10px; font-size: 12.5px; line-height: 1.8; color: rgba(var(--brand-rgb), 0.45); }
+.tier-tag { padding: 2px 10px; border-radius: 6px; font-size: 12px; background: rgba(212,168,83,0.15); color: rgba(212,168,83,0.95); }
+.major-row {
+  display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 10px;
+  cursor: pointer; border: 1px solid transparent; transition: all 0.15s;
+}
+.major-row:hover { background: rgba(var(--brand-rgb), 0.06); }
+.major-row.on { background: rgba(var(--brand-rgb), 0.10); border-color: rgba(var(--brand-rgb), 0.18); }
+.major-row .m-name { font-size: 14px; color: rgba(var(--brand-rgb), 0.88); }
+.major-row .m-code { font-size: 12px; color: rgba(var(--brand-rgb), 0.35); }
+.major-row .m-eval { margin-left: auto; font-size: 12px; color: rgba(var(--brand-rgb), 0.5); }
+.subsection-title { font-size: 15px; font-weight: 600; color: rgba(var(--brand-rgb), 0.85); margin: 26px 0 12px; }
+.post-item { padding: 12px 14px; border-radius: 10px; background: rgba(var(--line-rgb), 0.03); margin-bottom: 8px; }
+.post-item .p-meta { font-size: 11.5px; color: rgba(var(--brand-rgb), 0.35); margin-bottom: 4px; }
+.post-item .p-text { font-size: 13px; line-height: 1.7; color: rgba(var(--brand-rgb), 0.65); }
+.watch-btn.on { background: rgba(var(--brand-rgb), 0.16); }
+
+/* ── DEMO MODE Badge ── */
+.demo-badge {
+  position: fixed; bottom: 16px; right: 16px; z-index: 99999;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1a1a1a; background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+  pointer-events: none; user-select: none;
+  animation: demoBadgePulse 3s ease-in-out infinite;
+}
+@keyframes demoBadgePulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@media (max-width: 767px) {
+  .demo-badge { bottom: 72px; right: 10px; font-size: 10px; padding: 5px 10px; }
+}
+
+</style>
+</head>
+<body>
+<div class="demo-badge">DEMO MODE</div>
+<div data-nav="school"></div>
+<div data-header></div>
+
+<div class="container" style="margin-left:56px;padding:24px 28px 60px" id="detailRoot">
+  <div class="notif-empty" style="padding:80px 0;text-align:center;color:rgba(var(--brand-rgb),0.35)">加载中…</div>
+</div>
+
+<script src="assets/app.js?v=18"></script>
+<script>
+document.querySelector('[data-nav]').outerHTML = navSidebar('');
+
+const params = new URLSearchParams(location.search);
+const schoolCode = params.get('code');
+const majorCodeParam = params.get('major');
+
+function escHtml2(s) { return esc(s); }
+
+function watchToggleHtml(watching) {
+  return `<button class="ph-btn ${watching ? 'on' : ''}" id="watchBtn" onclick="toggleWatch()">${watching ? '已关注 · 点击取消' : '☆ 关注该校'}</button>`;
+}
+
+let SCHOOL = null, WATCHING = false, MY_WATCH = null, CURRENT_MAJOR = null;
+
+async function init() {
+  const root = document.getElementById('detailRoot');
+  try {
+    if (schoolCode) return renderSchool(schoolCode);
+    if (majorCodeParam) return renderMajor(majorCodeParam);
+    // 无参数：给个搜索引导
+    root.innerHTML = `<div class="notif-empty" style="padding:80px 0">从侧栏 <b>搜索</b> 或 <a href="dashboard.html" style="color:rgba(var(--brand-rgb),0.7)">舆情大盘</a> 的排行榜进入院校详情</div>`;
+  } catch (e) {
+    root.innerHTML = `<div class="notif-empty" style="padding:80px 0;color:#e8927c">${esc(e.message)}</div>`;
+  }
+}
+
+async function loadWatchState() {
+  MY_WATCH = null;
+  const data = await api('/watchlist', { silent: true });
+  for (const w of (data.items || [])) {
+    if (w.school_code === SCHOOL.code) MY_WATCH = w;
+  }
+  WATCHING = !!MY_WATCH;
+}
+
+function heroHtml() {
+  const s = SCHOOL;
+  return `<div class="detail-hero">
+    <div style="flex:1">
+      <h2>${esc(s.name)} <span class="tier-tag">${esc(s.tier || '')}</span></h2>
+      <div class="detail-meta"><span>📍 ${esc(s.province || '')} ${esc(s.city || '')}</span><span>代码 ${esc(s.code)}</span></div>
+      ${s.intro ? `<div class="detail-intro">${esc(String(s.intro)).slice(0, 220)}${String(s.intro).length > 220 ? '…' : ''}</div>` : ''}
+    </div>
+    <div id="watchSlot">${watchToggleHtml(WATCHING)}</div>
+  </div>`;
+}
+
+async function renderSchool(code) {
+  const root = document.getElementById('detailRoot');
+  SCHOOL = await api(`/schools/${encodeURIComponent(code)}`);
+  try { await loadWatchState(); } catch (e) { /* ignore */ }
+  root.innerHTML = `
+    ${heroHtml()}
+    <div class="subsection-title">开设专业（点选查看决策指标）</div>
+    <div id="majorList">${(SCHOOL.majors || []).map((m, i) => `
+      <div class="major-row ${i === 0 ? 'on' : ''}" data-code="${m.code}" data-name="${esc(m.name)}" onclick="pickMajor(this)">
+        <span class="m-code">${m.code}</span><span class="m-name">${esc(m.name)}</span>
+        <span class="m-eval">${esc(m.discipline_evaluation || '')}</span>
+      </div>`).join('') || '<div class="notif-empty" style="padding:20px 0">暂无专业数据</div>'}
+    </div>
+    <div id="majorPanel"></div>
+    <div class="subsection-title">近期相关讨论（真实舆情样本）</div>
+    <div id="postList"><div style="color:rgba(var(--brand-rgb),0.35);font-size:13px">加载中…</div></div>`;
+  loadPosts();
+  const first = document.querySelector('.major-row');
+  if (first) pickMajor(first);
+}
+
+async function renderMajor(code) {
+  const root = document.getElementById('detailRoot');
+  const m = await api(`/majors/${encodeURIComponent(code)}`);
+  root.innerHTML = `
+    <div class="detail-hero">
+      <div style="flex:1">
+        <h2>${esc(m.name)} <span class="tier-tag">${m.code}</span></h2>
+        <div class="detail-meta"><span>${esc(m.category || '')}</span><span>学科评估 ${esc(m.discipline_evaluation || '未知')}</span></div>
+      </div>
+    </div>
+    <div class="subsection-title">开设院校（点选进入院校详情）</div>
+    ${(m.schools || []).map(s => `
+      <div class="major-row" onclick="location.href='school.html?code=${s.code}'">
+        <span class="m-name">${esc(s.name)}</span>
+        <span class="m-eval">${esc(s.tier || '')} · ${esc(s.province || '')}</span>
+      </div>`).join('') || '<div class="notif-empty" style="padding:20px 0">暂无数据</div>'}`;
+}
+
+async function pickMajor(el) {
+  document.querySelectorAll('.major-row').forEach(x => x.classList.remove('on'));
+  el.classList.add('on');
+  CURRENT_MAJOR = { code: el.dataset.code, name: el.dataset.name };
+  const panel = document.getElementById('majorPanel');
+  panel.innerHTML = `<div style="color:rgba(var(--brand-rgb),0.35);font-size:13px;padding:14px 0">正在拉取 ${esc(CURRENT_MAJOR.name)} 决策指标…</div>`;
+  try {
+    const ov = await api(`/metrics/overview?school=${encodeURIComponent(SCHOOL.name)}&major=${encodeURIComponent(CURRENT_MAJOR.name)}`, { silent: true });
+    panel.innerHTML = `
+      <div class="subsection-title" style="margin-top:18px">${esc(CURRENT_MAJOR.name)} · 决策卡片</div>
+      ${decisionCardHtml(ov)}
+      <div style="margin-top:14px;display:flex;gap:10px">
+        <a class="ph-btn primary" href="agent-chat.html" style="text-decoration:none">在 Agent 对话中深入分析</a>
+        <a class="ph-btn" href="decision-cards.html" style="text-decoration:none">加入我的候选</a>
+      </div>`;
+  } catch (e) {
+    panel.innerHTML = `<div style="color:rgba(var(--brand-rgb),0.4);font-size:13px;padding:14px 0">${esc(SCHOOL.name)} 暂无 ${esc(CURRENT_MAJOR.name)} 的舆情指标（该校该专业样本不足）。</div>`;
+  }
+}
+
+async function loadPosts() {
+  const box = document.getElementById('postList');
+  try {
+    const d = await api(`/sentiment/posts?school=${encodeURIComponent(SCHOOL.name)}&limit=6`, { silent: true });
+    const posts = d.posts || [];
+    const SENT = { anxious: '焦虑', optimistic: '乐观', neutral: '中性', discouraging: '劝退' };
+    box.innerHTML = posts.length ? posts.map(p => `
+      <div class="post-item">
+        <div class="p-meta">${esc(p.platform || '')} · ${esc(String(p.published_at || '').slice(0, 10))} · ${SENT[p.sentiment] || ''}</div>
+        <div class="p-text">${esc(String(p.snippet || '').slice(0, 160))}</div>
+      </div>`).join('') : '<div style="color:rgba(var(--brand-rgb),0.35);font-size:13px">暂无公开样本帖</div>';
+  } catch (e) {
+    box.innerHTML = '<div style="color:rgba(var(--brand-rgb),0.35);font-size:13px">暂无公开样本帖</div>';
+  }
+}
+
+async function toggleWatch() {
+  try {
+    if (WATCHING && MY_WATCH) {
+      await api(`/watchlist/${MY_WATCH.id}`, { method: 'DELETE' });
+      WATCHING = false;
+      toast(`已取消关注 ${SCHOOL.name}`);
+    } else {
+      await api('/watchlist', { method: 'POST', body: { school_code: SCHOOL.code } });
+      WATCHING = true;
+      toast(`已关注 ${SCHOOL.name}，热度变化会通知你`);
+      refreshNotifBadge();
+    }
+    document.getElementById('watchSlot').innerHTML = watchToggleHtml(WATCHING);
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+init();
+</script>
+</body>
+</html>

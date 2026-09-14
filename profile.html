@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<title>个人主页 | 研屿</title>
+<link rel="stylesheet" href="assets/app.css?v=10">
+<script src="mock-api.js"></script>
+<script src="assets/vendor/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: rgba(var(--brand-rgb), 0.88); min-height: 100vh; }
+  /* 内容列在侧栏右侧区域居中：+28px 补回半个侧栏宽，最小 84px = 侧栏 56 + 间距 28 */
+  .main { max-width: 1200px; padding: 24px 32px 60px; margin-right: auto; margin-left: max(84px, calc((100% - 1200px) / 2 + 28px)); }
+
+  /* Profile Header */
+  .profile-header {
+    display: flex; align-items: center; gap: 18px;
+    background: rgba(var(--brand-rgb), 0.04);
+    border: 1px solid rgba(var(--brand-rgb), 0.08);
+    border-radius: 14px; padding: 20px 24px; margin-bottom: 24px;
+  }
+  .avatar {
+    width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--h1-c), var(--h2-c));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; color: var(--bg);
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .avatar:hover { transform: scale(1.05); box-shadow: 0 4px 16px rgba(var(--brand-rgb),0.2); }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .avatar-edit-hint {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s; font-size: 11px; color: #fff;
+  }
+  .avatar:hover .avatar-edit-hint { opacity: 1; }
+
+  /* Avatar picker */
+  .avatar-picker-overlay {
+    display: none; position: fixed; inset: 0; z-index: 600;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center;
+  }
+  .avatar-picker-overlay.open { display: flex; }
+  .avatar-picker {
+    width: min(400px, calc(100vw - 24px)); background: rgba(var(--panel-rgb, 20,20,18), 0.98);
+    border: 1px solid rgba(var(--brand-rgb), 0.15); border-radius: 16px;
+    padding: 24px; position: relative;
+  }
+  .avatar-picker h3 {
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    font-size: 16px; font-weight: 700; margin-bottom: 16px;
+  }
+  .avatar-picker-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px;
+  }
+  .avatar-picker-item {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--h1-c), var(--h2-c));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; color: var(--bg);
+    cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+    border: 2px solid transparent;
+  }
+  .avatar-picker-item:hover { transform: scale(1.1); }
+  .avatar-picker-item.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent),0.2); }
+  .avatar-picker-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .avatar-picker-upload {
+    width: 100%; padding: 10px; background: rgba(var(--brand-rgb), 0.06);
+    border: 1px dashed rgba(var(--brand-rgb), 0.25); border-radius: 8px;
+    color: rgba(var(--brand-rgb), 0.6); font-size: 13px; cursor: pointer;
+    text-align: center; transition: all 0.2s;
+  }
+  .avatar-picker-upload:hover { color: var(--accent); border-color: var(--accent); }
+  .avatar-picker-close {
+    position: absolute; top: 12px; right: 14px;
+    background: none; border: none; color: rgba(var(--brand-rgb), 0.5);
+    font-size: 18px; cursor: pointer;
+  }
+  .avatar-picker-close:hover { color: rgba(var(--brand-rgb), 0.9); }
+  .profile-name { font-family: ui-serif, Georgia, "Noto Serif SC", serif; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .profile-sub { font-size: 13px; color: rgba(var(--brand-rgb), 0.5); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .countdown {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(var(--brand-rgb), 0.06); border: 1px solid rgba(var(--brand-rgb), 0.12);
+    border-radius: 20px; padding: 4px 14px; color: rgba(var(--brand-rgb), 0.7);
+  }
+  .countdown-num { font-weight: 700; font-size: 16px; color: var(--accent); }
+
+  .section-title {
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    font-size: 14px; font-weight: 600; color: rgba(var(--brand-rgb), 0.6);
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  }
+  .section-title svg { width: 16px; height: 16px; }
+  .section-block { margin-bottom: 28px; }
+
+  /* Persona Tags */
+  .tags-group { margin-bottom: 14px; }
+  .tags-group-label { font-size: 11px; color: rgba(var(--brand-rgb), 0.4); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .tags-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag {
+    display: inline-flex; align-items: center; line-height: 1;
+    background: rgba(var(--brand-rgb), 0.06); border: 1px solid rgba(var(--brand-rgb), 0.12);
+    color: rgba(var(--brand-rgb), 0.8); font-size: 13px;
+    padding: 5px 12px; border-radius: 20px; transition: all 0.2s;
+  }
+  .tag.tag-editable {
+    position: relative; overflow: hidden;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .tag.tag-editable:hover { border-color: var(--accent); color: rgba(var(--brand-rgb), 0.95); }
+  .tag-edit-wrapper {
+    display: inline-flex; align-items: center;
+    width: 0; opacity: 0; overflow: hidden;
+    transition: width 0.3s ease, opacity 0.2s ease, margin-left 0.3s ease;
+    margin-left: 0;
+    flex-shrink: 0;
+  }
+  .tag.tag-editable:hover .tag-edit-wrapper {
+    width: 18px; opacity: 0.7; margin-left: 6px;
+  }
+  .tag-edit-icon { cursor: pointer; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
+  .tag-edit-icon svg { width: 12px; height: 12px; }
+  .tag-add {
+    background: transparent; border: 1px dashed rgba(var(--brand-rgb), 0.25);
+    color: rgba(var(--brand-rgb), 0.45); font-size: 12px;
+    padding: 5px 12px; border-radius: 20px; cursor: pointer; transition: all 0.2s;
+  }
+  .tag-add:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* Tag edit modal */
+  .tag-modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 600;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center;
+  }
+  .tag-modal-overlay.open { display: flex; }
+  .tag-modal {
+    width: 360px; max-width: 90vw; background: rgba(var(--panel-rgb, 22,20,17), 0.98);
+    border: 1px solid rgba(var(--brand-rgb), 0.15); border-radius: 14px;
+    padding: 22px 24px; position: relative;
+  }
+  .tag-modal h4 {
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    font-size: 15px; font-weight: 700; margin-bottom: 14px;
+  }
+  .tag-modal-input {
+    width: 100%; background: rgba(var(--brand-rgb), 0.06);
+    border: 1px solid rgba(var(--brand-rgb), 0.15); border-radius: 8px;
+    padding: 10px 14px; font-size: 14px; color: rgba(var(--brand-rgb), 0.9);
+    font-family: inherit; outline: none; margin-bottom: 16px;
+  }
+  .tag-modal-input:focus { border-color: var(--accent); }
+  .tag-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .tag-modal-btn {
+    padding: 7px 18px; border-radius: 8px; font-size: 13px;
+    font-family: inherit; cursor: pointer; transition: all 0.2s; border: none;
+  }
+  .tag-modal-btn.primary { background: var(--accent); color: #fff; font-weight: 600; }
+  .tag-modal-btn.primary:hover { opacity: 0.85; }
+  .tag-modal-btn.secondary {
+    background: rgba(var(--brand-rgb), 0.06); border: 1px solid rgba(var(--brand-rgb), 0.12);
+    color: rgba(var(--brand-rgb), 0.6);
+  }
+  .tag-modal-btn.secondary:hover { color: rgba(var(--brand-rgb), 0.9); }
+  .tag-modal-btn.danger {
+    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);
+    color: rgba(239,68,68,0.85); margin-right: auto;
+  }
+  .tag-modal-btn.danger:hover { background: rgba(239,68,68,0.18); }
+  .tag-gen-btn {
+    margin-left: auto; background: rgba(var(--accent), 0.12); border: 1px solid rgba(var(--accent), 0.3);
+    color: var(--accent); font-size: 12px; padding: 5px 14px; border-radius: 20px;
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+  }
+  .tag-gen-btn:hover { background: rgba(var(--accent), 0.2); }
+  .tag-btn-group { margin-left: auto; display: flex; gap: 8px; }
+  .tag-btn-group .tag-gen-btn { margin-left: 0; }
+  .tag-reset-btn {
+    margin-left: auto; background: none; border: 1px solid rgba(var(--brand-rgb), 0.18);
+    border-radius: 999px; padding: 5px 13px; font-size: 11.5px; cursor: pointer;
+    color: rgba(var(--brand-rgb), 0.55); font-family: inherit; transition: all .2s;
+  }
+  .tag-reset-btn:hover { color: rgba(252,165,165,0.95); border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.07); }
+
+  /* Info Cards */
+  .cards-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+  .info-card {
+    background: rgba(var(--brand-rgb), 0.04);
+    border: 1px solid rgba(var(--brand-rgb), 0.08);
+    border-radius: 12px; padding: 18px; position: relative; transition: border-color 0.2s;
+  }
+  .info-card.clickable { cursor: pointer; }
+  .info-card.clickable:hover { border-color: rgba(var(--brand-rgb), 0.2); }
+  .info-card-edit {
+    position: absolute; top: 12px; right: 12px; opacity: 0; transition: opacity 0.2s;
+    color: rgba(var(--brand-rgb), 0.4); cursor: pointer;
+  }
+  .info-card.clickable:hover .info-card-edit { opacity: 1; }
+  .info-card-edit svg { width: 14px; height: 14px; }
+  .info-card-label { font-size: 11px; color: rgba(var(--brand-rgb), 0.4); margin-bottom: 8px; }
+  .info-card-value { font-family: ui-serif, Georgia, "Noto Serif SC", serif; font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .info-card-sub { font-size: 12px; color: rgba(var(--brand-rgb), 0.45); }
+
+  /* Today Plan */
+  .plan-section {
+    background: rgba(var(--brand-rgb), 0.04);
+    border: 1px solid rgba(var(--brand-rgb), 0.08);
+    border-radius: 14px; padding: 20px 22px; margin-bottom: 28px;
+  }
+  .plan-header-title { font-family: ui-serif, Georgia, "Noto Serif SC", serif; font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .plan-header-desc { font-size: 12.5px; color: rgba(var(--brand-rgb), 0.5); line-height: 1.8; }
+  .plan-meta { font-size: 11.5px; color: rgba(var(--brand-rgb), 0.4); margin-top: 6px; display: flex; gap: 14px; }
+  .plan-progress-bar { height: 6px; background: rgba(var(--brand-rgb), 0.08); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+  .plan-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.5s ease; }
+  .plan-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 16px; }
+  .plan-card {
+    background: rgba(var(--brand-rgb), 0.05); border: 1px solid rgba(var(--brand-rgb), 0.08);
+    border-radius: 10px; padding: 14px 16px;
+    transition: all 0.2s; position: relative;
+  }
+  .plan-card::after {
+    content: '+30min'; position: absolute; top: 8px; right: 10px;
+    font-size: 10px; color: var(--accent); opacity: 0; transition: opacity 0.2s;
+  }
+  .plan-card:hover::after { opacity: 0.7; }
+  .plan-card-code { font-size: 11px; color: rgba(var(--brand-rgb), 0.4); margin-bottom: 4px; font-family: monospace; }
+  .plan-card-name { font-size: 14px; font-weight: 600; color: rgba(var(--brand-rgb), 0.85); margin-bottom: 8px; }
+  .plan-card-time {
+    font-size: 22px; font-weight: 700; color: var(--h4-c);
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    cursor: pointer; display: inline-flex; align-items: baseline; gap: 2px;
+  }
+  .plan-card-time span { font-size: 13px; font-weight: 400; color: rgba(var(--brand-rgb), 0.45); margin-left: 2px; }
+  .plan-card-time:hover { color: var(--accent); }
+  @keyframes planCardBump {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.03); box-shadow: 0 0 0 2px var(--accent); }
+    100% { transform: scale(1); box-shadow: none; }
+  }
+  .plan-card.bump { animation: planCardBump 0.5s ease-out; transition: none; }
+  .plan-time-input {
+    width: 60px; background: rgba(var(--brand-rgb), 0.06); border: 1px solid var(--accent);
+    border-radius: 6px; padding: 2px 6px; font-size: 20px; font-weight: 700;
+    color: var(--h4-c); font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    outline: none; text-align: center;
+  }
+  .plan-actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .plan-time-btn {
+    background: rgba(var(--brand-rgb), 0.05); border: 1px solid rgba(var(--brand-rgb), 0.08);
+    border-radius: 8px; padding: 6px 14px; font-size: 13px;
+    color: rgba(var(--brand-rgb), 0.7); cursor: pointer; transition: all 0.2s;
+    font-family: inherit;
+  }
+  .plan-time-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .plan-replan-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--h4-c); color: var(--bg-main, #262322); border: none;
+    border-radius: 8px; padding: 8px; width: 36px; height: 36px;
+    cursor: pointer; transition: opacity 0.2s;
+    font-family: inherit; margin-left: auto;
+  }
+  .plan-replan-btn:hover { opacity: 0.85; }
+  .plan-replan-btn svg { width: 16px; height: 16px; }
+  .plan-confirm-btn {
+    display: inline-flex; align-items: center;
+    background: var(--accent, #6db3a3); color: #fff; border: none;
+    border-radius: 8px; padding: 8px 16px; font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: all 0.3s;
+    font-family: inherit;
+  }
+  .plan-confirm-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .plan-confirm-btn.confirmed {
+    background: rgba(var(--brand-rgb), 0.1); color: var(--accent, #6db3a3);
+    border: 1px solid rgba(109, 179, 163, 0.3);
+  }
+
+  /* Stats */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+  .stat-item {
+    background: rgba(var(--brand-rgb), 0.04); border: 1px solid rgba(var(--brand-rgb), 0.08);
+    border-radius: 10px; padding: 14px 16px; text-align: center;
+  }
+  .stat-value { font-family: ui-serif, Georgia, "Noto Serif SC", serif; font-size: 24px; font-weight: 700; }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.h4 { color: var(--h4-c); }
+  .stat-value.h5 { color: var(--h5-c); }
+  .stat-label { font-size: 11.5px; color: rgba(var(--brand-rgb), 0.45); margin-top: 4px; }
+
+  .subject-bars { display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }
+  .subject-bar-item { display: flex; align-items: center; gap: 12px; }
+  .subject-bar-name { width: 52px; font-size: 13px; color: rgba(var(--brand-rgb), 0.7); flex-shrink: 0; }
+  .subject-bar-track { flex: 1; height: 10px; background: rgba(var(--brand-rgb), 0.06); border-radius: 5px; overflow: hidden; }
+  .subject-bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s ease; }
+  .subject-bar-fill.s1 { background: linear-gradient(90deg, rgba(111,179,163,0.8), rgba(111,179,163,0.5)); }
+  .subject-bar-fill.s2 { background: linear-gradient(90deg, rgba(79,116,175,0.8), rgba(79,116,175,0.5)); }
+  .subject-bar-fill.s3 { background: linear-gradient(90deg, rgba(201,155,94,0.8), rgba(201,155,94,0.5)); }
+  .subject-bar-fill.s4 { background: linear-gradient(90deg, rgba(133,103,189,0.8), rgba(133,103,189,0.5)); }
+  .subject-bar-hours { width: 52px; text-align: right; font-size: 12.5px; color: rgba(var(--brand-rgb), 0.55); font-family: ui-serif, Georgia, serif; }
+  .subject-bar-item.focus-bar { opacity: 0.85; }
+  .subject-bar-item.focus-bar .subject-bar-name { color: var(--accent); }
+  .subject-bar-fill.s-focus { background: linear-gradient(90deg, rgba(var(--accent),0.9), rgba(var(--accent),0.5)); }
+
+  .stats-sub-section { margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(var(--brand-rgb), 0.06); }
+  .stats-sub-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+
+  /* Contrib calendar */
+  .chart-area {
+    background: rgba(var(--brand-rgb), 0.03); border: 1px solid rgba(var(--brand-rgb), 0.07);
+    border-radius: 12px; padding: 16px; margin-bottom: 6px; width: 100%;
+  }
+  .contrib-wrapper { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; }
+  .contrib-wrapper::-webkit-scrollbar { height: 6px; }
+  .contrib-wrapper::-webkit-scrollbar-track { background: rgba(var(--brand-rgb), 0.04); border-radius: 3px; margin: 4px 0; }
+  .contrib-wrapper::-webkit-scrollbar-thumb { background: rgba(var(--brand-rgb), 0.15); border-radius: 3px; }
+  .contrib-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(var(--brand-rgb), 0.25); }
+  .contrib-day-labels { display: flex; flex-direction: column; gap: 3px; padding-top: 18px; }
+  .contrib-day-labels span { height: 14px; font-size: 10px; color: rgba(var(--brand-rgb), 0.35); line-height: 14px; }
+  .contrib-main { flex: 1; min-width: 0; }
+  .contrib-months { display: flex; margin-bottom: 4px; font-size: 10.5px; color: rgba(var(--brand-rgb), 0.4); }
+  .contrib-months .month-gap { width: 7px; flex-shrink: 0; }
+  .contrib-grid { display: grid; grid-template-rows: repeat(7, 14px); grid-auto-flow: column; grid-auto-columns: 14px; gap: 3px; }
+  .contrib-grid .week-gap { grid-row: 1 / -1; width: 4px; }
+  .contrib-cell { width: 14px; height: 14px; border-radius: 3px; background: rgba(var(--brand-rgb), 0.06); }
+  .contrib-legend { display: flex; align-items: center; gap: 4px; justify-content: flex-end; margin-top: 10px; }
+
+  /* Calendar controls */
+  .calendar-controls {
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .calendar-period-group {
+    display: flex; gap: 4px; background: rgba(var(--brand-rgb), 0.04);
+    border: 1px solid rgba(var(--brand-rgb), 0.08); border-radius: 8px; padding: 3px;
+  }
+  .calendar-period-btn {
+    background: transparent; border: none; border-radius: 6px;
+    padding: 5px 12px; font-size: 12px; color: rgba(var(--brand-rgb), 0.55);
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+  }
+  .calendar-period-btn:hover { color: rgba(var(--brand-rgb), 0.85); }
+  .calendar-period-btn.active {
+    background: rgba(var(--accent), 0.15); color: var(--accent); font-weight: 600;
+  }
+  .calendar-controls-label {
+    font-size: 11px; color: rgba(var(--brand-rgb), 0.4); margin-right: 4px;
+  }
+  .calendar-line-chart { width: 100%; min-width: 300px; height: 220px; }
+  #calendarViewContainer {
+    min-height: 220px; position: relative;
+    transition: opacity 0.35s ease;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  #calendarViewContainer.fade-out { opacity: 0; }
+
+  /* Achievements */
+  .achievements { display: flex; gap: 10px; flex-wrap: wrap; }
+  .achievement {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(var(--brand-rgb), 0.04); border: 1px solid rgba(var(--brand-rgb), 0.08);
+    border-radius: 10px; padding: 10px 16px; font-size: 13px;
+  }
+  .achievement-icon { font-size: 18px; }
+  .achievement-label { color: rgba(var(--brand-rgb), 0.5); }
+  .achievement-value { font-weight: 600; color: var(--bold-c); }
+
+  .loading-tip { padding: 40px 0; text-align: center; color: rgba(var(--brand-rgb), 0.35); font-size: 13px; }
+
+  /* 备考信息编辑浮层 */
+  .edit-overlay {
+    display: none; position: fixed; inset: 0; z-index: 500;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center;
+  }
+  .edit-overlay.open { display: flex; }
+  .edit-panel {
+    width: 520px; max-width: 94vw; max-height: 88vh; overflow-y: auto;
+    background: rgba(var(--panel-rgb, 20,20,18), 0.98);
+    border: 1px solid rgba(var(--brand-rgb), 0.15);
+    border-radius: 16px; padding: 26px 28px;
+  }
+  .edit-panel h3 {
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    font-size: 17px; font-weight: 700; color: var(--h1-c, #4f74af); margin-bottom: 18px;
+  }
+  .edit-field { margin-bottom: 14px; }
+  .edit-field label { display: block; font-size: 12px; color: rgba(var(--brand-rgb), 0.5); margin-bottom: 5px; }
+  .edit-field .gy-input2, .edit-field input, .edit-field select {
+    width: 100%; box-sizing: border-box;
+    background: rgba(var(--brand-rgb), 0.06); border: 1px solid rgba(var(--brand-rgb), 0.15);
+    border-radius: 8px; padding: 9px 12px; font-size: 13.5px;
+    color: rgba(var(--brand-rgb), 0.9); font-family: inherit; outline: none;
+  }
+  .edit-field input:focus, .edit-field select:focus { border-color: var(--accent, #6db3a3); }
+  .subject-edit-row { display: grid; grid-template-columns: 70px 1fr 80px 36px; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .subject-edit-row input { padding: 7px 10px; font-size: 13px; }
+  .subject-del {
+    width: 30px; height: 30px; border-radius: 7px;
+    border: 1px solid rgba(var(--brand-rgb), 0.15); background: rgba(var(--brand-rgb), 0.05);
+    color: rgba(var(--brand-rgb), 0.45); cursor: pointer; font-size: 13px;
+  }
+  .subject-del:hover { color: rgba(252,165,165,0.95); border-color: rgba(239,68,68,0.3); }
+  .subject-add {
+    width: 100%; padding: 8px; margin-bottom: 14px;
+    background: transparent; border: 1px dashed rgba(var(--brand-rgb), 0.25);
+    border-radius: 8px; color: rgba(var(--brand-rgb), 0.5); font-size: 12.5px; cursor: pointer;
+  }
+  .subject-add:hover { color: rgba(var(--brand-rgb), 0.8); border-color: rgba(var(--brand-rgb), 0.4); }
+  .edit-close {
+    position: absolute; top: 14px; right: 16px;
+    background: none; border: none; color: rgba(var(--brand-rgb), 0.45);
+    font-size: 18px; cursor: pointer;
+  }
+  .edit-close:hover { color: rgba(var(--brand-rgb), 0.9); }
+
+  @media (max-width: 1000px) {
+    .cards-row, .stats-row, .plan-cards { grid-template-columns: 1fr 1fr; }
+    .main { padding: 16px 16px calc(76px + env(safe-area-inset-bottom, 0px)); }
+    /* 标签区标题行：标题一行、按钮组整行，不再硬挤 */
+    .section-title:has(.tag-btn-group) { flex-wrap: wrap; row-gap: 10px; }
+    .tag-btn-group { margin-left: 0 !important; width: 100%; justify-content: flex-end; }
+    /* 清掉按钮自带的 margin-left:auto，否则会把「从 Agent 更新」推到最左、按钮组被拆成两端 */
+    .tag-gen-btn, .tag-reset-btn { white-space: nowrap; margin-left: 0; }
+    .page-header { position: sticky; top: 0; backdrop-filter: blur(16px); z-index: 30; flex-wrap: wrap; gap: 8px; }
+  }
+  @media (max-width: 640px) {
+    .cards-row, .stats-row, .plan-cards { grid-template-columns: 1fr; }
+  }
+
+/* ── DEMO MODE Badge ── */
+.demo-badge {
+  position: fixed; bottom: 16px; right: 16px; z-index: 99999;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1a1a1a; background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+  pointer-events: none; user-select: none;
+  animation: demoBadgePulse 3s ease-in-out infinite;
+}
+@keyframes demoBadgePulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@media (max-width: 767px) {
+  .demo-badge { bottom: 72px; right: 10px; font-size: 10px; padding: 5px 10px; }
+}
+
+</style>
+</head>
+<body>
+<div class="demo-badge">DEMO MODE</div>
+<div data-nav="profile"></div>
+
+<div class="main" id="profileMain">
+  <div class="loading-tip">加载中…</div>
+</div>
+
+<!-- 备考信息编辑浮层 -->
+<div class="edit-overlay" id="editOverlay">
+  <div class="edit-panel" style="position:relative">
+    <button class="edit-close" onclick="closeEdit()">✕</button>
+    <h3>编辑备考信息</h3>
+    <div class="edit-field"><label>目标院校</label><input id="epSchool"></div>
+    <div class="edit-field"><label>目标专业</label><input id="epMajor"></div>
+    <div class="edit-field"><label>考试日期（YYYY-MM-DD）</label><input id="epDate" placeholder="2027-12-19"></div>
+    <div class="edit-field"><label>每日计划总时长（分钟）</label><input id="epDaily" type="number" min="30"></div>
+    <div class="edit-field">
+      <label>备考科目（代码 / 名称 / 每日分钟）</label>
+      <div id="epSubjects"></div>
+      <button class="subject-add" onclick="addSubjectRow()">＋ 添加科目</button>
+    </div>
+    <button class="settings-save-btn" onclick="saveExamPrep()">保存</button>
+  </div>
+</div>
+
+<!-- 头像选择器 -->
+<div class="avatar-picker-overlay" id="avatarPickerOverlay">
+  <div class="avatar-picker">
+    <button class="avatar-picker-close" onclick="closeAvatarPicker()">✕</button>
+    <h3>选择头像</h3>
+    <div class="avatar-picker-grid" id="avatarPickerGrid"></div>
+    <label class="avatar-picker-upload" for="avatarUploadInput">
+      📷 上传自定义头像
+    </label>
+    <input type="file" id="avatarUploadInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
+  </div>
+</div>
+
+<!-- 标签编辑弹窗 -->
+<div class="tag-modal-overlay" id="tagModalOverlay" onclick="if(event.target===this)closeTagModal()">
+  <div class="tag-modal">
+    <h4 id="tagModalTitle">编辑标签</h4>
+    <input class="tag-modal-input" id="tagModalInput" placeholder="输入标签内容…">
+    <div class="tag-modal-actions">
+      <button class="tag-modal-btn danger" id="tagModalDelete" style="display:none" onclick="deleteTagFromModal()">删除</button>
+      <button class="tag-modal-btn secondary" onclick="closeTagModal()">取消</button>
+      <button class="tag-modal-btn primary" id="tagModalConfirm" onclick="confirmTagModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js?v=18"></script>
+<script>
+document.querySelector('[data-nav]').outerHTML = navSidebar('profile');
+
+const state = { tags: { 背景: [], 偏好: [], 关注: [] }, prep: null, summary: null };
+
+// ── 画像标签 ──
+async function loadTags() {
+  const data = await api('/profile/tags');
+  state.tags = data.groups || state.tags;
+  renderTags();
+}
+
+function renderTags() {
+  const wrap = document.getElementById('tagsSection');
+  const groupsHtml = Object.entries(state.tags).map(([cat, tags]) => `
+    <div class="tags-group" data-category="${esc(cat)}">
+      <div class="tags-group-label">${cat}</div>
+      <div class="tags-list">
+        ${tags.map(t => `
+        <span class="tag tag-editable" data-tag-id="${t.id}" title="点击编辑，留空删除">
+          ${esc(t.label)}
+          <span class="tag-edit-wrapper">
+            <span class="tag-edit-icon" onclick="editTag('${t.id}', '${esc(t.label)}')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </span>
+          </span>
+        </span>`).join('')}
+        <button class="tag-add" onclick="addTag('${esc(cat)}')">+ 添加标签</button>
+      </div>
+    </div>`).join('');
+  wrap.querySelector('.tags-groups').innerHTML = groupsHtml;
+}
+
+let tagModalState = { mode: 'add', category: null, tagId: null };
+
+function addTag(category) {
+  tagModalState = { mode: 'add', category, tagId: null };
+  document.getElementById('tagModalTitle').textContent = `添加「${category}」标签`;
+  document.getElementById('tagModalInput').value = '';
+  document.getElementById('tagModalDelete').style.display = 'none';
+  document.getElementById('tagModalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('tagModalInput').focus(), 50);
+}
+
+function editTag(id, current) {
+  const tagEl = document.querySelector(`[data-tag-id="${id}"]`);
+  const category = tagEl?.closest('[data-category]')?.dataset.category || '背景';
+  tagModalState = { mode: 'edit', category, tagId: id };
+  document.getElementById('tagModalTitle').textContent = '编辑标签';
+  document.getElementById('tagModalInput').value = current;
+  document.getElementById('tagModalDelete').style.display = 'inline-flex';
+  document.getElementById('tagModalOverlay').classList.add('open');
+  setTimeout(() => { const inp = document.getElementById('tagModalInput'); inp.focus(); inp.select(); }, 50);
+}
+
+function closeTagModal() {
+  document.getElementById('tagModalOverlay').classList.remove('open');
+}
+
+async function confirmTagModal() {
+  const label = document.getElementById('tagModalInput').value.trim();
+  if (tagModalState.mode === 'add') {
+    if (!label) return;
+    await api('/profile/tags', { method: 'POST', body: { category: tagModalState.category, label } });
+  } else {
+    if (!label) {
+      await api(`/profile/tags/${tagModalState.tagId}`, { method: 'DELETE' });
+    } else {
+      await api(`/profile/tags/${tagModalState.tagId}`, { method: 'PUT', body: { label } });
+    }
+  }
+  closeTagModal();
+  loadTags();
+}
+
+async function deleteTagFromModal() {
+  if (tagModalState.tagId) {
+    await api(`/profile/tags/${tagModalState.tagId}`, { method: 'DELETE' });
+    closeTagModal();
+    loadTags();
+  }
+}
+
+document.getElementById('tagModalInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmTagModal();
+  if (e.key === 'Escape') closeTagModal();
+});
+
+async function genTagsFromProfile() {
+  const r = await api('/profile/tags/from-profile', { method: 'POST' });
+  toast(r.added ? `已从画像生成 ${r.added} 个标签` : '画像标签已是最新');
+  loadTags();
+}
+
+// 从 Agent 对话历史提炼特质（调用一次 AI 分析）
+async function genTagsFromDialog(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'AI 分析中…'; }
+  try {
+    const r = await api('/profile/tags/from-dialog', { method: 'POST' });
+    toast(r.added ? `AI 从对话中提炼了 ${r.added} 个新特质` : '对话里没有发现新的特质');
+    loadTags();
+  } catch (e) {
+    toast(e.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '从 Agent 更新'; }
+  }
+}
+
+// 重置特质：清掉 AI 生成的标签，画像回到未引导状态（可重新预分析）
+async function resetTags() {
+  if (!confirm('重置将清除 AI 生成的画像标签与引导数据（保留手动标签），并重新开始预分析。确定？')) return;
+  try {
+    const r = await api('/profile/tags/reset', { method: 'POST' });
+    toast(r.removed ? `已重置：清除了 ${r.removed} 个 AI 特质` : '当前没有已生成的 AI 特质');
+    loadTags();
+    if (typeof loadProfile === 'function') loadProfile();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── 头像选择器 ──
+const presetAvatars = ['研', '屿', '🏔', '🌊', '📚', '🎯', '⚡', '🔥', '💡', '🌟'];
+
+function openAvatarPicker() {
+  const grid = document.getElementById('avatarPickerGrid');
+  const currentAvatar = localStorage.getItem('gy_avatar') || '';
+  grid.innerHTML = presetAvatars.map((a, i) => `
+    <div class="avatar-picker-item${currentAvatar === a ? ' selected' : ''}"
+         onclick="selectAvatar('${a}')"
+         style="background:${getAvatarGradient(i)}">${a}</div>
+  `).join('');
+  document.getElementById('avatarPickerOverlay').classList.add('open');
+}
+
+function closeAvatarPicker() {
+  document.getElementById('avatarPickerOverlay').classList.remove('open');
+}
+
+function selectAvatar(avatar) {
+  localStorage.setItem('gy_avatar', avatar);
+  updateAvatarDisplay(avatar);
+  closeAvatarPicker();
+  toast('头像已更新');
+}
+
+function getAvatarGradient(idx) {
+  const gradients = [
+    'linear-gradient(135deg, #4f74af, #6db3a3)',
+    'linear-gradient(135deg, #6db3a3, #c99b5e)',
+    'linear-gradient(135deg, #c99b5e, #8767bd)',
+    'linear-gradient(135deg, #8767bd, #4f74af)',
+    'linear-gradient(135deg, #4f74af, #c99b5e)',
+    'linear-gradient(135deg, #6db3a3, #8767bd)',
+    'linear-gradient(135deg, #c99b5e, #4f74af)',
+    'linear-gradient(135deg, #8767bd, #6db3a3)',
+    'linear-gradient(135deg, #4f74af, #8767bd)',
+    'linear-gradient(135deg, #6db3a3, #4f74af)',
+  ];
+  return gradients[idx % gradients.length];
+}
+
+function updateAvatarDisplay(avatar) {
+  const avatarEl = document.getElementById('avatarEl');
+  if (!avatarEl) return;
+  if (avatar.startsWith('data:image')) {
+    avatarEl.innerHTML = `<img src="${avatar}" alt="avatar"><span class="avatar-edit-hint">更换</span>`;
+  } else {
+    avatarEl.textContent = avatar;
+    avatarEl.insertAdjacentHTML('beforeend', '<span class="avatar-edit-hint">更换</span>');
+  }
+}
+
+async function handleAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    toast('图片大小不能超过 2MB', 'err');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    localStorage.setItem('gy_avatar', dataUrl);
+    updateAvatarDisplay(dataUrl);
+    closeAvatarPicker();
+    toast('头像已更新');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── 备考信息 + 计划 ──
+async function loadPrep() {
+  state.prep = await api('/profile/exam-prep');
+  renderPrep();
+}
+
+function renderPrep() {
+  const p = state.prep;
+  document.getElementById('schoolValue').textContent = p.target_school || '未设置';
+  document.getElementById('targetLine').textContent =
+    `目标：${p.target_school || '未设置'}${p.target_major ? ' · ' + p.target_major : ''}`;
+  document.getElementById('schoolSub').textContent = p.target_major || '点击设置目标院校与专业';
+  const subj = p.subjects || [];
+  const subjSorted = [...subj].sort((a, b) => a.name.length - b.name.length);
+  document.getElementById('subjectsValue').textContent =
+    subjSorted.length ? subjSorted.map(s => s.name).join(' · ') : '未设置';
+  document.getElementById('subjectsSub').textContent =
+    subj.length ? `${subj.length} 科 · 每日计划 ${p.daily_plan_minutes} 分钟` : '点击设置备考科目';
+  const cd = document.getElementById('countdownWrap');
+  cd.style.display = p.exam_date ? 'inline-flex' : 'none';
+  if (p.exam_date) {
+    document.getElementById('countdownNum').textContent =
+      p.countdown_days !== null && p.countdown_days >= 0 ? p.countdown_days : 0;
+  }
+  // 今日计划
+  const totalMinutes = p.daily_plan_minutes || 360;
+  const scheduled = subj.reduce((a, s) => a + (s.plan_minutes || 0), 0);
+  document.getElementById('planScheduled').textContent = scheduled;
+  document.getElementById('planTotalDisplay').textContent = totalMinutes;
+  document.getElementById('planTotalDisplayMeta').textContent = totalMinutes;
+  document.getElementById('planProgressFill').style.width =
+    Math.min(100, Math.round(scheduled / Math.max(totalMinutes, 1) * 100)) + '%';
+  document.getElementById('planCards').innerHTML = subj.length ? subj.map((s, idx) => `
+    <div class="plan-card" onclick="addTimeToSubject(${idx})">
+      ${s.code ? `<div class="plan-card-code">${esc(s.code)}</div>` : ''}
+      <div class="plan-card-name">${esc(s.name)}</div>
+      <div class="plan-card-time">
+        <span class="time-val">${s.plan_minutes || 0}</span><span>分钟</span>
+      </div>
+    </div>`).join('') : '<div style="font-size:12px;color:rgba(var(--brand-rgb),0.35)">尚未设置科目，点击上方「备考科目」卡片添加</div>';
+  // 确认计划按钮状态
+  const btn = document.getElementById('planConfirmBtn');
+  if (btn) {
+    if (p.plan_confirmed_at) {
+      btn.classList.add('confirmed');
+      btn.querySelector('span').textContent = '已确认 ✓';
+    } else {
+      btn.classList.remove('confirmed');
+      btn.querySelector('span').textContent = '确认计划';
+    }
+  }
+}
+
+function openEdit() {
+  const p = state.prep || {};
+  document.getElementById('epSchool').value = p.target_school || '';
+  document.getElementById('epMajor').value = p.target_major || '';
+  document.getElementById('epDate').value = p.exam_date || '';
+  document.getElementById('epDaily').value = p.daily_plan_minutes || 360;
+  const subjBox = document.getElementById('epSubjects');
+  subjBox.innerHTML = '';
+  (p.subjects && p.subjects.length ? p.subjects : [{ code: '', name: '', plan_minutes: 60 }]).forEach(s => {
+    subjBox.insertAdjacentHTML('beforeend', subjectRowHtml(s));
+  });
+  document.getElementById('editOverlay').classList.add('open');
+}
+function subjectRowHtml(s = {}) {
+  return `<div class="subject-edit-row">
+    <input class="se-code" placeholder="代码" value="${esc(s.code || '')}">
+    <input class="se-name" placeholder="科目名称" value="${esc(s.name || '')}">
+    <input class="se-min" type="number" placeholder="分钟" value="${s.plan_minutes ?? 60}">
+    <button class="subject-del" onclick="this.closest('.subject-edit-row').remove()">✕</button>
+  </div>`;
+}
+function addSubjectRow() {
+  document.getElementById('epSubjects').insertAdjacentHTML('beforeend', subjectRowHtml({}));
+}
+function closeEdit() { document.getElementById('editOverlay').classList.remove('open'); }
+
+async function saveExamPrep() {
+  const subjects = [...document.querySelectorAll('#epSubjects .subject-edit-row')].map(row => ({
+    code: row.querySelector('.se-code').value.trim(),
+    name: row.querySelector('.se-name').value.trim(),
+    plan_minutes: parseInt(row.querySelector('.se-min').value, 10) || 0,
+  })).filter(s => s.name);
+  try {
+    await api('/profile/exam-prep', { method: 'PUT', body: {
+      target_school: document.getElementById('epSchool').value.trim(),
+      target_major: document.getElementById('epMajor').value.trim(),
+      exam_date: document.getElementById('epDate').value.trim() || null,
+      daily_plan_minutes: parseInt(document.getElementById('epDaily').value, 10) || 360,
+      subjects,
+    }});
+    toast('备考信息已更新');
+    closeEdit();
+    await loadPrep();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// 点击科目卡片：给该科目加 30 分钟
+async function addTimeToSubject(idx) {
+  const p = state.prep;
+  if (!p || !(p.subjects || []).length) return;
+  const subjects = p.subjects.map(s => ({ ...s }));
+  subjects[idx].plan_minutes = (subjects[idx].plan_minutes || 0) + 30;
+  const newScheduled = subjects.reduce((a, s) => a + (s.plan_minutes || 0), 0);
+  const currentTotal = p.daily_plan_minutes || 360;
+  const body = { subjects };
+  if (newScheduled > currentTotal) {
+    body.daily_plan_minutes = newScheduled;
+  }
+  await api('/profile/exam-prep', { method: 'PUT', body });
+  await loadPrep();
+  const cards = document.querySelectorAll('.plan-card');
+  if (cards[idx]) { cards[idx].classList.add('bump'); setTimeout(() => cards[idx].classList.remove('bump'), 600); }
+}
+
+// +时间：只增加每日总时长预算，不改变科目分配
+async function adjustPlan(delta) {
+  const p = state.prep;
+  if (!p) return;
+  const newTotal = Math.max(0, (p.daily_plan_minutes || 360) + delta);
+  await api('/profile/exam-prep', { method: 'PUT', body: { daily_plan_minutes: newTotal } });
+  await loadPrep();
+}
+
+// 调整单个科目的时间
+async function adjustSubjectMinutes(idx, delta) {
+  const p = state.prep;
+  if (!p || !(p.subjects || []).length) return;
+  const subjects = p.subjects.map(s => ({ ...s }));
+  const newMin = Math.max(0, (subjects[idx].plan_minutes || 0) + delta);
+  subjects[idx].plan_minutes = newMin;
+  // 如果科目总时间超过预算，自动增加预算
+  const newScheduled = subjects.reduce((a, s) => a + (s.plan_minutes || 0), 0);
+  const currentTotal = p.daily_plan_minutes || 360;
+  const body = { subjects };
+  if (newScheduled > currentTotal) {
+    body.daily_plan_minutes = newScheduled;
+  }
+  await api('/profile/exam-prep', { method: 'PUT', body });
+  await loadPrep();
+}
+
+function editPlanTime(el, idx) {
+  const p = state.prep;
+  if (!p) return;
+  const cur = p.subjects[idx]?.plan_minutes || 0;
+  const input = document.createElement('input');
+  input.className = 'plan-time-input';
+  input.type = 'number';
+  input.value = cur;
+  input.min = 0;
+  el.innerHTML = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+  const save = async () => {
+    const v = Math.max(0, parseInt(input.value, 10) || 0);
+    const subjects = p.subjects.map(s => ({ ...s }));
+    subjects[idx].plan_minutes = v;
+    // 如果科目总时间超过预算，自动增加预算
+    const newScheduled = subjects.reduce((a, s) => a + (s.plan_minutes || 0), 0);
+    const currentTotal = p.daily_plan_minutes || 360;
+    const body = { subjects };
+    if (newScheduled > currentTotal) {
+      body.daily_plan_minutes = newScheduled;
+    }
+    await api('/profile/exam-prep', { method: 'PUT', body });
+    await loadPrep();
+  };
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { loadPrep(); }
+  });
+}
+
+// 重新规划：清零所有科目时间，重新手动分配
+async function replan() {
+  const p = state.prep;
+  if (!p || !(p.subjects || []).length) { toast('先设置备考科目', 'err'); return; }
+  const subjects = p.subjects.map(s => ({ ...s, plan_minutes: 0 }));
+  await api('/profile/exam-prep', { method: 'PUT', body: { subjects, daily_plan_minutes: 0 } });
+  toast('已清零，请手动分配时间');
+  await loadPrep();
+}
+
+async function confirmPlan() {
+  const p = state.prep;
+  if (!p || !(p.subjects || []).length) { toast('先设置备考科目', 'err'); return; }
+  // 计算剩余时间并平均分配
+  const totalMinutes = p.daily_plan_minutes || 360;
+  const scheduled = (p.subjects || []).reduce((a, s) => a + (s.plan_minutes || 0), 0);
+  const remaining = totalMinutes - scheduled;
+  let subjects = p.subjects.map(s => ({ ...s }));
+  if (remaining > 0 && subjects.length > 0) {
+    const perSubject = Math.floor(remaining / subjects.length);
+    const extra = remaining % subjects.length;
+    subjects.forEach((s, i) => {
+      s.plan_minutes = (s.plan_minutes || 0) + perSubject + (i < extra ? 1 : 0);
+    });
+    await api('/profile/exam-prep', { method: 'PUT', body: { subjects } });
+    toast(`剩余${remaining}分钟已平均分配`);
+  }
+  const res = await api('/profile/plan/confirm', { method: 'POST' });
+  if (res.ok) {
+    toast('计划已确认，已同步至自习室今日任务');
+    state.prep.plan_confirmed_at = res.confirmed_at;
+    renderPrep();
+  }
+}
+
+// ── 学习统计 ──
+async function loadStats() {
+  state.summary = await api('/profile/study-summary');
+  renderStats();
+}
+
+function renderStats() {
+  const s = state.summary;
+  document.getElementById('statTotal').textContent = `${Math.round(s.total_minutes / 60)}h`;
+  document.getElementById('statToday').textContent = `${(s.today_minutes / 60).toFixed(1)}h`;
+  document.getElementById('statStreak').textContent = `${s.streak_days} 天`;
+  // 各科条形：按时间降序排序，但"专注"始终在最下面
+  const subjects = [...s.subjects].sort((a, b) => {
+    if (a.subject === '专注') return 1;
+    if (b.subject === '专注') return -1;
+    return b.minutes - a.minutes;
+  });
+  const maxSub = Math.max(...subjects.map(x => x.minutes), 1);
+  document.getElementById('subjectBars').innerHTML = subjects.map(x => `
+    <div class="subject-bar-item">
+      <span class="subject-bar-name">${esc(x.subject)}</span>
+      <div class="subject-bar-track"><div class="subject-bar-fill ${x.color}" style="width:${Math.max(4, x.minutes / maxSub * 100)}%"></div></div>
+      <span class="subject-bar-hours">${Math.round(x.minutes / 60)}h</span>
+    </div>`).join('') || '<div style="font-size:12px;color:rgba(var(--brand-rgb),0.35)">在自习室开始专注后，这里会出现学习统计</div>';
+  renderCalendarView();
+  // 本周计划完成度（自习室回流 → 目标计划）
+  const prep = state.prep;
+  const weekEl = document.getElementById('weekCompletion');
+  if (!weekEl) return;
+  const weekMin = (s.calendar || []).slice(-7).reduce((a, x) => a + x.minutes, 0);
+  const target = ((prep && prep.daily_plan_minutes) || 360) * 7;
+  weekEl.textContent = `${Math.min(100, Math.round(weekMin / Math.max(target, 1) * 100))}%`;
+  const sub = document.getElementById('weekCompletionSub');
+  if (sub) sub.textContent = `本周 ${Math.round(weekMin / 60)}h / 计划 ${Math.round(target / 60)}h`;
+}
+
+const calendarState = { period: 90, view: 'heatmap', chart: null };
+
+function changeCalendarPeriod(days) {
+  calendarState.period = days;
+  calendarState.view = days <= 30 ? 'line' : 'heatmap';
+  document.querySelectorAll('.calendar-period-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.period) === days);
+  });
+  renderCalendarView();
+}
+
+// 主题切换 → 学习日历/图表用缓存数据重绘（不发请求）
+onThemeRedraw(() => { if (state.summary) renderCalendarView(); });
+
+function renderCalendarView() {
+  const cal = state.summary?.calendar || [];
+  const container = document.getElementById('calendarViewContainer');
+  // 过渡动画：先淡出，再替换内容，再淡入
+  container.classList.add('fade-out');
+  setTimeout(() => {
+    if (calendarState.view === 'line') {
+      if (calendarState.chart) { calendarState.chart.dispose(); calendarState.chart = null; }
+      renderLineChart(cal);
+    } else {
+      if (calendarState.chart) { calendarState.chart.dispose(); calendarState.chart = null; }
+      container.innerHTML = `
+        <div class="contrib-wrapper">
+          <div class="contrib-day-labels">
+            <span></span><span>一</span><span></span><span>三</span><span></span><span>五</span><span></span>
+          </div>
+          <div class="contrib-main">
+            <div class="contrib-months" id="contribMonths"></div>
+            <div class="contrib-grid" id="contribGrid"></div>
+          </div>
+        </div>
+        <div class="contrib-legend">
+          <span style="font-size:11px;color:rgba(var(--brand-rgb),0.4)">少</span>
+          <span class="contrib-cell"></span>
+          <span class="contrib-cell" style="background:var(--accent);opacity:0.25"></span>
+          <span class="contrib-cell" style="background:var(--accent);opacity:0.5"></span>
+          <span class="contrib-cell" style="background:var(--accent);opacity:0.75"></span>
+          <span class="contrib-cell" style="background:var(--accent)"></span>
+          <span style="font-size:11px;color:rgba(var(--brand-rgb),0.4)">多</span>
+        </div>`;
+      renderContrib(cal);
+    }
+    container.classList.remove('fade-out');
+  }, 350);
+}
+
+function renderLineChart(cal) {
+  const container = document.getElementById('calendarViewContainer');
+  const days = calendarState.period;
+  container.innerHTML = '<div class="calendar-line-chart" id="lineChartEl" style="width:100%;height:220px;"></div>';
+  const chartDom = document.getElementById('lineChartEl');
+  if (!chartDom || chartDom.clientWidth === 0) return;
+  if (calendarState.chart) { calendarState.chart.dispose(); calendarState.chart = null; }
+
+  const calMap = {};
+  for (const c of cal) calMap[c.date] = c.minutes;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - (days - 1));
+  const dates = [], values = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    const ds = d.toISOString().slice(0, 10);
+    dates.push(ds);
+    values.push(Math.round((calMap[ds] || 0) / 60 * 10) / 10);
+  }
+
+  requestAnimationFrame(() => {
+    if (!document.getElementById('lineChartEl')) return;
+    const chart = echarts.init(chartDom);
+    calendarState.chart = chart;
+    const cs = getComputedStyle(document.documentElement);
+    const brandRgb = cs.getPropertyValue('--brand-rgb').trim();
+    const accent = cs.getPropertyValue('--accent').trim();
+    const panelRgb = cs.getPropertyValue('--panel-rgb').trim();
+    const brand = (a) => `rgba(${brandRgb},${a})`;
+    const accentA = (a) => {
+      const m = accent.match(/^#([0-9a-f]{6})$/i);
+      if (!m) return accent;
+      const r = parseInt(m[1].slice(0,2),16), g = parseInt(m[1].slice(2,4),16), b = parseInt(m[1].slice(4,6),16);
+      return `rgba(${r},${g},${b},${a})`;
+    };
+    let interval, formatter;
+    if (days <= 30) {
+      interval = days <= 7 ? 0 : Math.floor(days / 6);
+      formatter = v => { const d = new Date(v); return `${d.getMonth()+1}/${d.getDate()}`; };
+    } else if (days <= 180) {
+      interval = Math.floor(days / 6);
+      formatter = v => { const d = new Date(v); return `${d.getMonth()+1}月`; };
+    } else {
+      interval = Math.floor(days / 6);
+      formatter = v => { const d = new Date(v); return `${d.getFullYear()}.${d.getMonth()+1}`; };
+    }
+    chart.setOption({
+      backgroundColor: 'transparent',
+      grid: { left: 60, right: 20, top: 40, bottom: 30 },
+      xAxis: {
+        type: 'category', data: dates, boundaryGap: false,
+        axisLine: { lineStyle: { color: brand(0.15) } },
+        axisLabel: { color: brand(0.45), fontSize: 10, interval, formatter },
+        axisTick: { show: false }
+      },
+      yAxis: {
+        type: 'value',
+        nameTextStyle: { color: brand(0.4), fontSize: 10 },
+        axisLine: { show: false },
+        axisLabel: { color: brand(0.4), fontSize: 10 },
+        splitLine: { lineStyle: { color: brand(0.06) } }
+      },
+      series: [{
+        type: 'line', data: values, smooth: true, symbol: 'none',
+        lineStyle: { color: accent, width: 2 },
+        areaStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: accentA(0.25) },
+              { offset: 1, color: accentA(0.02) }
+            ]
+          }
+        }
+      }],
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: `rgba(${panelRgb},0.95)`,
+        borderColor: brand(0.15),
+        textStyle: { color: brand(0.85), fontSize: 12 },
+        formatter: p => `${p[0].axisValue}<br/>${p[0].value} 小时`
+      }
+    }, true);
+  });
+}
+
+function renderContrib(cal) {
+  const grid = document.getElementById('contribGrid');
+  const monthsEl = document.getElementById('contribMonths');
+  if (!grid || !monthsEl) return;
+  grid.innerHTML = ''; monthsEl.innerHTML = '';
+  const days = calendarState.period;
+  const calMap = {};
+  for (const c of cal) calMap[c.date] = c.minutes;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = new Date(today);
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - (days - 1));
+
+  const calStart = new Date(startDate);
+  calStart.setDate(calStart.getDate() - calStart.getDay());
+  const calEnd = new Date(endDate);
+  const endDow = calEnd.getDay();
+  if (endDow < 6) calEnd.setDate(calEnd.getDate() + (6 - endDow));
+
+  const weeks = [];
+  const cursor = new Date(calStart);
+  while (cursor <= calEnd) {
+    const weekDays = [];
+    for (let d = 0; d < 7; d++) {
+      weekDays.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    const firstInRange = weekDays.find(d => d >= startDate && d <= endDate) || weekDays[0];
+    weeks.push({ days: weekDays, month: firstInRange.getMonth() });
+  }
+
+  const monthGroups = [];
+  for (let i = 0; i < weeks.length; i++) {
+    if (monthGroups.length === 0 || monthGroups[monthGroups.length - 1].month !== weeks[i].month) {
+      monthGroups.push({ month: weeks[i].month, weekCount: 1 });
+    } else {
+      monthGroups[monthGroups.length - 1].weekCount++;
+    }
+  }
+
+  const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  for (let i = 0; i < monthGroups.length; i++) {
+    const span = document.createElement('span');
+    span.textContent = monthNames[monthGroups[i].month];
+    span.style.width = (monthGroups[i].weekCount * 17) + 'px';
+    span.style.flexShrink = '0';
+    monthsEl.appendChild(span);
+    if (i < monthGroups.length - 1) {
+      const gap = document.createElement('span');
+      gap.className = 'month-gap';
+      monthsEl.appendChild(gap);
+    }
+  }
+
+  const level = m => m === 0 ? 0 : m < 60 ? 1 : m < 150 ? 2 : m < 300 ? 3 : 4;
+  const opacity = [0, 0.25, 0.5, 0.75, 1];
+
+  for (let wi = 0; wi < weeks.length; wi++) {
+    if (wi > 0 && weeks[wi].month !== weeks[wi - 1].month) {
+      const gapCell = document.createElement('div');
+      gapCell.className = 'week-gap';
+      grid.appendChild(gapCell);
+    }
+    const week = weeks[wi];
+    for (let d = 0; d < 7; d++) {
+      const date = week.days[d];
+      if (date < startDate || date > endDate) {
+        const ph = document.createElement('span');
+        ph.style.visibility = 'hidden';
+        grid.appendChild(ph);
+        continue;
+      }
+      const ds = date.toISOString().slice(0, 10);
+      const minutes = calMap[ds] || 0;
+      const cell = document.createElement('span');
+      cell.className = 'contrib-cell';
+      if (minutes > 0) {
+        cell.style.background = 'var(--accent)';
+        cell.style.opacity = opacity[level(minutes)];
+      }
+      cell.title = `${ds} · ${Math.round(minutes / 60 * 10) / 10}h`;
+      grid.appendChild(cell);
+    }
+  }
+
+  // 热力图对齐：没铺满时居中，铺满时右对齐展示最新数据
+  requestAnimationFrame(() => {
+    const wrapper = grid.closest('.contrib-wrapper');
+    if (!wrapper) return;
+    if (grid.scrollWidth <= wrapper.clientWidth) {
+      wrapper.style.justifyContent = 'center';
+    } else {
+      wrapper.style.justifyContent = 'flex-end';
+      wrapper.scrollLeft = wrapper.scrollWidth;
+    }
+  });
+}
+
+async function loadAchievements() {
+  const data = await api('/profile/achievements');
+  const icons = { streak_days: '🔥', day_hours: '⚡', total_hours: '📚', plan_full: '🎯' };
+  document.getElementById('achievements').innerHTML = data.items.length
+    ? data.items.map(a => `
+      <div class="achievement">
+        <span class="achievement-icon">${icons[a.type] || '🏆'}</span>
+        <span class="achievement-label">${esc(a.label)}</span>
+        <span class="achievement-value">${esc(a.value)}</span>
+      </div>`).join('')
+    : '<div style="font-size:12px;color:rgba(var(--brand-rgb),0.35)">去自习室开始第一次专注，解锁你的第一个成就</div>';
+}
+
+// ── 初始化 ──
+document.getElementById('profileMain').innerHTML = `
+  <div class="profile-header">
+    <div class="avatar" id="avatarEl" onclick="openAvatarPicker()">
+      研
+      <span class="avatar-edit-hint">更换</span>
+    </div>
+    <div class="profile-info">
+      <div class="profile-name" id="profileName">我的研屿主页</div>
+      <div class="profile-sub">
+        <span id="targetLine">目标加载中…</span>
+        <span class="countdown" id="countdownWrap" style="display:none">
+          距考研 <span class="countdown-num" id="countdownNum">—</span> 天
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-block tags-section" id="tagsSection">
+    <div class="section-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      Agent 生成的考生画像
+      <div class="tag-btn-group">
+        <button class="tag-gen-btn" onclick="genTagsFromDialog()" title="AI 读取最近的 Agent 对话，提炼新的特质标签">从 Agent 更新</button>
+        <button class="tag-reset-btn" onclick="resetTags()">重置特质</button>
+      </div>
+    </div>
+    <div class="tags-groups"></div>
+  </div>
+
+  <div class="cards-row">
+    <div class="info-card clickable" onclick="openEdit()">
+      <div class="info-card-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+      <div class="info-card-label">目标院校</div>
+      <div class="info-card-value" id="schoolValue">—</div>
+      <div class="info-card-sub" id="schoolSub">—</div>
+    </div>
+    <div class="info-card clickable" onclick="openEdit()">
+      <div class="info-card-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+      <div class="info-card-label">备考科目</div>
+      <div class="info-card-value" id="subjectsValue">—</div>
+      <div class="info-card-sub" id="subjectsSub">—</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">本周计划完成度</div>
+      <div class="info-card-value" style="color:var(--accent)" id="weekCompletion">—</div>
+      <div class="info-card-sub" id="weekCompletionSub">自习室数据回流</div>
+    </div>
+  </div>
+
+  <div class="plan-section">
+    <div class="plan-header-title">今日计划</div>
+    <div class="plan-header-desc">
+      今日可用 <span id="planTotalDisplay">360</span> 分钟；
+      按科目分配下方时间块，进入 <a href="study-room.html" style="color:var(--accent)">沉潜自习室</a> 开始专注，完成情况将回流到本页。
+    </div>
+    <div class="plan-meta"><span>已安排 <span id="planScheduled">0</span> / <span id="planTotalDisplayMeta">360</span> 分钟</span></div>
+    <div class="plan-progress-bar"><div class="plan-progress-fill" id="planProgressFill" style="width:0%"></div></div>
+    <div class="plan-cards" id="planCards"></div>
+    <div class="plan-actions">
+      <button class="plan-time-btn" onclick="adjustPlan(30)">+30分钟</button>
+      <button class="plan-time-btn" onclick="adjustPlan(60)">+1小时</button>
+      <button class="plan-time-btn" onclick="adjustPlan(120)">+2小时</button>
+      <button class="plan-time-btn" onclick="adjustPlan(180)">+3小时</button>
+      <button class="plan-replan-btn" onclick="replan()" title="重新规划">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
+      <button class="plan-confirm-btn" id="planConfirmBtn" onclick="confirmPlan()">
+        <span>确认计划</span>
+      </button>
+    </div>
+  </div>
+
+
+  <div class="section-block stats-section">
+    <div class="section-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      学习行为统计（自习室回流）
+    </div>
+    <div class="stats-row">
+      <div class="stat-item"><div class="stat-value accent" id="statTotal">—</div><div class="stat-label">累计学习时长</div></div>
+      <div class="stat-item"><div class="stat-value h4" id="statToday">—</div><div class="stat-label">今日学习时长</div></div>
+      <div class="stat-item"><div class="stat-value h5" id="statStreak">—</div><div class="stat-label">连续打卡</div></div>
+    </div>
+    <div class="stats-sub-section">
+      <div class="section-title" style="font-size:13px">各科时长分布</div>
+      <div class="subject-bars" id="subjectBars"></div>
+    </div>
+    <div class="stats-sub-section">
+      <div class="section-title" style="font-size:13px">学习时长趋势</div>
+      <div class="chart-area">
+        <div class="calendar-controls">
+          <div class="calendar-period-group">
+            <button class="calendar-period-btn" data-period="7" onclick="changeCalendarPeriod(7)">一周</button>
+            <button class="calendar-period-btn" data-period="30" onclick="changeCalendarPeriod(30)">一月</button>
+            <button class="calendar-period-btn active" data-period="90" onclick="changeCalendarPeriod(90)">三月</button>
+            <button class="calendar-period-btn" data-period="180" onclick="changeCalendarPeriod(180)">半年</button>
+            <button class="calendar-period-btn" data-period="365" onclick="changeCalendarPeriod(365)">一年</button>
+          </div>
+        </div>
+        <div id="calendarViewContainer" style="width:100%">
+          <div class="contrib-wrapper">
+            <div class="contrib-day-labels">
+              <span></span><span>一</span><span></span><span>三</span><span></span><span>五</span><span></span>
+            </div>
+            <div class="contrib-main">
+              <div class="contrib-months" id="contribMonths"></div>
+              <div class="contrib-grid" id="contribGrid"></div>
+            </div>
+          </div>
+          <div class="contrib-legend">
+            <span style="font-size:11px;color:rgba(var(--brand-rgb),0.4)">少</span>
+            <span class="contrib-cell"></span>
+            <span class="contrib-cell" style="background:var(--accent);opacity:0.25"></span>
+            <span class="contrib-cell" style="background:var(--accent);opacity:0.5"></span>
+            <span class="contrib-cell" style="background:var(--accent);opacity:0.75"></span>
+            <span class="contrib-cell" style="background:var(--accent)"></span>
+            <span style="font-size:11px;color:rgba(var(--brand-rgb),0.4)">多</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-block stats-section">
+    <div class="section-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+      成就与里程碑
+    </div>
+    <div class="achievements" id="achievements"></div>
+  </div>
+`;
+
+(async () => {
+  try {
+    const me = await api('/auth/me');
+    const savedAvatar = localStorage.getItem('gy_avatar');
+    if (savedAvatar) {
+      updateAvatarDisplay(savedAvatar);
+    } else {
+      document.getElementById('avatarEl').textContent = (me.username || '研')[0].toUpperCase();
+      document.getElementById('avatarEl').insertAdjacentHTML('beforeend', '<span class="avatar-edit-hint">更换</span>');
+    }
+    document.getElementById('profileName').textContent = `${me.username} 的研屿主页`;
+  } catch (e) { /* ignore */ }
+  // 任一模块失败不影响其它模块展示
+  await Promise.allSettled([
+    loadTags(), loadPrep(), loadStats(), loadAchievements(),
+  ]);
+})();
+</script>
+
+<script>
+</script>
+</body>
+</html>

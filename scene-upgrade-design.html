@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自习室升级 · 设计稿 | 研屿</title>
+<link rel="stylesheet" href="assets/app.css?v=10">
+<style>
+  /* ── 全部复刻自 study-room.html 现有首页样式 ── */
+  .home { min-height: 100vh; position: relative; }
+  .home::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(var(--brand-rgb), 0.06), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 80% 110%, rgba(110, 161, 120, 0.05), transparent 60%);
+  }
+  .home-hero {
+    position: relative; z-index: 10; display: flex; flex-direction: column;
+    align-items: center; text-align: center; padding: 4.2rem 1.5rem 2.2rem; gap: 1.1rem;
+  }
+  .home-hero h1 {
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif; font-weight: 400;
+    font-size: clamp(1.9rem, 5vw, 2.9rem); letter-spacing: 0.06em;
+    color: var(--text, #cfc7bd); line-height: 1.25;
+  }
+  .home-hero p { font-size: 0.9rem; color: var(--text-muted, #948d83); max-width: 34rem; line-height: 1.9; }
+  .scene-grid {
+    position: relative; z-index: 10; display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem; max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 3rem;
+  }
+  .scene-card {
+    border-radius: 1rem; overflow: hidden; cursor: pointer;
+    border: 1px solid rgba(var(--brand-rgb), 0.12);
+    background: rgba(var(--brand-rgb), 0.04);
+    transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+    position: relative;
+  }
+  .scene-card:hover {
+    transform: translateY(-4px); border-color: rgba(var(--brand-rgb), 0.3);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+  }
+  .scene-card-img { width: 100%; height: 170px; object-fit: cover; display: block; }
+  .scene-card-body { padding: 14px 16px 16px; }
+  .scene-card-title-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .scene-card-title { font-family: ui-serif, Georgia, "Noto Serif SC", serif; font-size: 16px; font-weight: 600; }
+  .scene-card-en { font-size: 10px; letter-spacing: 0.15em; color: var(--text-muted, #948d83); text-transform: uppercase; }
+  .scene-card-tagline { font-size: 12.5px; color: var(--text-muted, #948d83); line-height: 1.6; margin-bottom: 10px; }
+  .scene-card-channel {
+    font-size: 10.5px; padding: 2px 9px; border-radius: 999px;
+    background: rgba(var(--brand-rgb), 0.07); border: 1px solid rgba(var(--brand-rgb), 0.1);
+    color: var(--text-muted, #948d83);
+  }
+  .scene-card-channels { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ══════ 增强 ① 卡片右上角 ♡ ══════ */
+  .scene-card-fav {
+    position: absolute; top: 10px; right: 10px; z-index: 2;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(10,9,7,0.42); backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.16); color: rgba(255,255,255,0.78);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .2s;
+  }
+  .scene-card-fav:hover { transform: scale(1.12); color: #fff; }
+  .scene-card-fav.on { color: #f47c6c; }
+  .scene-card-fav.on svg { fill: #f47c6c; }
+  .scene-card-fav.pop { animation: favPop .35s ease; }
+  @keyframes favPop { 40% { transform: scale(1.32); } }
+
+  /* ══════ 增强 ② 我的收藏轻入口（hero 下一个小按钮，非标签行） ══════ */
+  .home-fav-row { text-align: center; margin: -0.8rem 0 1.8rem; position: relative; z-index: 10; }
+  .fav-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: none; border: 1px solid transparent; border-radius: 999px;
+    color: rgba(var(--brand-rgb),0.5); font-size: 12.5px; cursor: pointer;
+    padding: 6px 16px; transition: all .2s; font-family: inherit;
+  }
+  .fav-toggle:hover { color: rgba(var(--brand-rgb),0.85); border-color: rgba(var(--brand-rgb),0.2); }
+  .fav-toggle.on { color: #f47c6c; border-color: rgba(244,124,108,0.35); background: rgba(244,124,108,0.07); }
+
+  /* ══════ 增强 ③ 上传我的自习室（网格末尾占位卡，与场景卡同尺寸） ══════ */
+  .scene-upload {
+    border: 1.5px dashed rgba(var(--brand-rgb),0.28); border-radius: 1rem;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px;
+    min-height: 260px; color: rgba(var(--brand-rgb),0.42); cursor: pointer;
+    transition: all .2s; background: rgba(var(--brand-rgb),0.02);
+    font-size: 13px; text-align: center; padding: 16px; font-family: inherit;
+  }
+  .scene-upload:hover { border-color: rgba(var(--brand-rgb),0.55); color: rgba(var(--brand-rgb),0.75); background: rgba(var(--brand-rgb),0.05); transform: translateY(-2px); }
+  .scene-upload svg { width: 26px; height: 26px; opacity: 0.7; }
+  .scene-upload small { font-size: 11px; opacity: 0.7; line-height: 1.7; }
+
+  /* ══════ 增强 ④ 沉浸背景 Ken Burns 演示（静图缓动 = "会动"） ══════ */
+  .kb-demo { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 1rem; position: relative; z-index: 10; }
+  .kb-frame {
+    position: relative; border-radius: 1rem; overflow: hidden; aspect-ratio: 21/8;
+    border: 1px solid rgba(var(--line-rgb),0.12);
+  }
+  .kb-frame img { width: 100%; height: 100%; object-fit: cover; animation: kb 18s ease-in-out infinite; }
+  @keyframes kb { 0%,100% { transform: scale(1); } 50% { transform: scale(1.09); } }
+  .kb-note { position: absolute; left: 14px; bottom: 12px; font-size: 11.5px; color: rgba(255,255,255,0.8); background: rgba(10,9,7,0.5); backdrop-filter: blur(6px); padding: 5px 12px; border-radius: 999px; }
+  .kb-desc { font-size: 12px; color: var(--text-muted, #948d83); margin-top: 10px; line-height: 1.8; }
+
+  /* 设计稿横幅 */
+  .draft-banner {
+    position: sticky; top: 0; z-index: 99;
+    background: rgba(180,130,60,0.14); border-bottom: 1px solid rgba(180,130,60,0.3);
+    backdrop-filter: blur(10px); color: rgba(230,190,120,0.95);
+    text-align: center; font-size: 12px; padding: 8px 16px; letter-spacing: 0.05em;
+  }
+  .sentinel { text-align: center; padding: 4px 0 18px; color: var(--text-muted, #948d83); font-size: 11.5px; letter-spacing: 0.2em; opacity: 0.7; grid-column: 1/-1; }
+  .home-footer { text-align: center; padding: 1.5rem; position: relative; z-index: 10; }
+  .home-footer p { font-size: 0.72rem; color: var(--text-muted, #948d83); opacity: 0.7; }
+
+  .toast { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%) translateY(20px); opacity: 0; transition: all .3s; background: rgba(20,18,15,0.92); color: rgba(244,231,211,0.92); border: 1px solid rgba(244,231,211,0.15); padding: 10px 20px; border-radius: 12px; font-size: 13px; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+
+/* ── DEMO MODE Badge ── */
+.demo-badge {
+  position: fixed; bottom: 16px; right: 16px; z-index: 99999;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1a1a1a; background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+  pointer-events: none; user-select: none;
+  animation: demoBadgePulse 3s ease-in-out infinite;
+}
+@keyframes demoBadgePulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@media (max-width: 767px) {
+  .demo-badge { bottom: 72px; right: 10px; font-size: 10px; padding: 5px 10px; }
+}
+
+</style>
+</head>
+<body>
+<div class="demo-badge">DEMO MODE</div>
+<div class="draft-banner">📌 设计稿预览（不影响正式页面）· 基于现有自习室首页样式 · 交互可点：♡ 收藏 / 我的收藏切换 / 底部滚动自动加载</div>
+
+<div class="home">
+  <section class="home-hero">
+    <h1>拨开迷雾，寻一座属于你的岛</h1>
+    <p>选择一个场景，戴上耳机，开始今天的专注。<br>番茄钟记录你的每一份坚持，AI 学伴随时待命。</p>
+  </section>
+
+  <div class="home-fav-row">
+    <button class="fav-toggle" id="favToggle" onclick="toggleFavOnly()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      <span id="favToggleText">我的收藏</span>
+    </button>
+  </div>
+
+  <main class="scene-grid" id="sceneGrid"></main>
+
+  <div class="kb-demo">
+    <div class="kb-frame">
+      <img src="assets/scenes/forest-cabin.jpg" alt="Ken Burns 演示">
+      <div class="kb-note">沉浸页背景 · Ken Burns 缓动演示（18s 循环，正式版 36s 更缓）</div>
+    </div>
+    <div class="kb-desc">
+      关于"动图"：innook 官网没有用任何 GIF/视频，场景全是静态图，动的感觉来自<strong>静态大图 + CSS 缓动层</strong>（上面这种缓慢缩放，正式版还会叠加粒子与光斑）。优点：不糊、不掉帧、体积小。上传的自定义封面同样适用这套动效。
+    </div>
+  </div>
+
+  <div class="home-footer"><p>© 2026 研屿 · 沉潜自习室 · 设计稿</p></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="mock-api.js"></script>
+<script>
+'use strict';
+const AMBIENT_LABELS = { birds: '鸟鸣', stream: '溪流', wind: '风声', rain: '雨声', waves: '海浪', fire: '篝火' };
+const IMG = ['forest-cabin','snow-mountain','ocean-cove','night-library','rainy-cafe','misty-hills'];
+const SCENES = [
+  ['forest-cabin','森林木屋','Forest Cabin','鸟鸣与溪流环绕的林间木屋，适合编程与逻辑思考',['birds','stream','wind']],
+  ['snow-mountain','雪山小屋','Snow Cabin','篝火噼啪作响，风雪在窗外，适合深度阅读与写作',['fire','wind']],
+  ['ocean-cove','海边咖啡馆','Seaside Café','海浪轻拍礁石，适合创意工作与头脑风暴',['waves','wind']],
+  ['night-library','深夜书房','Midnight Library','雨夜暖灯与旧书页，适合复习与记忆',['rain','fire']],
+  ['rainy-cafe','雨天咖啡馆','Rainy Café','玻璃窗上的雨痕与暖光，适合长期专注与书写',['rain','fire','wind']],
+  ['misty-hills','云雾山涧','Misty Valley','高山云雾与鸟鸣溪涧，适合冥想式的专注',['wind','stream','birds']],
+  ['rice-pavilion','稻田凉亭','Rice Pavilion','蛙鸣与夏虫环绕的田边凉亭，适合背书与朗读',['birds','wind']],
+  ['canyon-stars','峡谷星空','Canyon Stars','夜风穿谷、溪声隐隐，适合深夜刷题',['wind','stream']],
+  ['lakeside-mist','湖畔晨雾','Lakeside Mist','水声拍岸、晨鸟初啼，适合早起第一轮复习',['waves','birds']],
+  ['bamboo-path','竹林小径','Bamboo Path','竹叶沙沙、鸟鸣清脆，适合冷静的错题复盘',['birds','wind']],
+  ['old-town-books','老城书店','Old Town Books','雨打屋檐与挂钟摆动，适合背诵与默写',['rain']],
+  ['lighthouse-night','灯塔风夜','Lighthouse Night','海浪与强风对峙，适合冲刺期的破釜沉舟',['waves','wind']],
+  ['courtyard-fire','庭院炉火','Courtyard Fire','篝火噼啪、虫鸣四野，适合晚间总结与计划',['fire','birds']],
+  ['valley-stream','山谷溪流','Valley Stream','溪水潺潺、林间鸟语，适合长时间沉浸刷卷',['stream','birds']],
+  ['rooftop-rain','屋顶雨夜','Rooftop Rain','雨点敲铁皮、远处闷雷，适合对抗瞌睡的夜读',['rain','wind']],
+  ['tundra-springs','苔原温泉','Tundra Springs','蒸汽氤氲、水声温吞，适合放松式的二轮过书',['waves','wind']],
+  ['midnight-reads','午夜书房','Midnight Reads','炉火与雨声各半，适合论文与写作之夜',['rain','fire']],
+  ['foggy-bay','晨雾海湾','Foggy Bay','海浪与晨鸟交替，适合唤醒式的晨间任务',['waves','birds']],
+].map(([img, name, en, tagline, channels], i) => ({ id: img + '-' + i, img, name, en, tagline, channels }));
+
+const PAGE = 9, STEP = 6, FAV_KEY = 'gy_fav_rooms';
+let shown = PAGE, favOnly = false;
+const favs = () => { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch (e) { return []; } };
+const heart = on => `<svg width="14" height="14" viewBox="0 0 24 24" fill="${on ? '#f47c6c' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
+const card = s => `
+  <div class="scene-card" onclick="toast('设计稿：进入「${s.name}」沉浸自习')">
+    <button class="scene-card-fav ${favs().includes(s.id) ? 'on' : ''}" onclick="toggleFav('${s.id}', this)">${heart(favs().includes(s.id))}</button>
+    <img class="scene-card-img" src="assets/scenes/${s.img}.jpg" loading="lazy" alt="${s.name}">
+    <div class="scene-card-body">
+      <div class="scene-card-title-row"><span class="scene-card-title">${s.name}</span><span class="scene-card-en">${s.en}</span></div>
+      <div class="scene-card-tagline">${s.tagline}</div>
+      <div class="scene-card-channels">${s.channels.map(c => `<span class="scene-card-channel">${AMBIENT_LABELS[c]}</span>`).join('')}</div>
+    </div>
+  </div>`;
+const UPLOAD = `
+  <button class="scene-upload" onclick="toast('设计稿：上传面板（封面图裁切 + 挑选内置音景组合，或上传环境音 ≤5MB，审核后上架社区）')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    上传我的自习室
+    <small>自定义封面 + 音景组合 · 审核后与社区共享</small>
+  </button>`;
+const list = () => favOnly ? SCENES.filter(s => favs().includes(s.id)) : SCENES;
+function render() {
+  document.getElementById('sceneGrid').innerHTML = list().slice(0, shown).map(card).join('') + UPLOAD;
+  const btn = document.getElementById('favToggle');
+  btn.classList.toggle('on', favOnly);
+  const n = favs().length;
+  document.getElementById('favToggleText').textContent = favOnly ? '看全部场景' : `我的收藏${n ? ` (${n})` : ''}`;
+}
+function loadMore() {
+  if (favOnly || shown >= SCENES.length) return;
+  shown = Math.min(shown + STEP, SCENES.length);
+  render();
+}
+function toggleFav(id, el) {
+  event.stopPropagation();
+  const f = favs(), at = f.indexOf(id);
+  if (at >= 0) f.splice(at, 1); else f.push(id);
+  localStorage.setItem(FAV_KEY, JSON.stringify(f));
+  const on = f.includes(id);
+  el.classList.toggle('on', on); el.innerHTML = heart(on);
+  el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 360);
+  if (favOnly) render();
+  toast(on ? '已收藏（正式版跟随账号）' : '已取消收藏');
+}
+function toggleFavOnly() { favOnly = !favOnly; shown = PAGE; render(); scrollTo({ top: 0, behavior: 'smooth' }); }
+addEventListener('scroll', () => { if (innerHeight + scrollY >= document.body.scrollHeight - 500) loadMore(); });
+let tt;
+function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2000); }
+render();
+</script>
+<script src="assets/app.js?v=18"></script>
+</body>
+</html>

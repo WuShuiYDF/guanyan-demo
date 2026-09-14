@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>择校分析报告 | 研屿</title>
+<script src="mock-api.js"></script>
+<script src="assets/vendor/echarts.min.js"></script>
+<link rel="stylesheet" href="assets/app.css?v=10">
+<style>
+  body { line-height: 1.8; }
+  h1, h2, h3, h4, .toc-title, .cover-logo, .disclaimer-title, .callout-title, .highlight-box h4, .section-num {
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+  }
+  .icon-svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-svg-sm { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Report container */
+  .report { max-width: 900px; padding: 40px 48px; margin-right: auto; margin-left: max(84px, calc((100% - 900px) / 2 + 28px)); }
+
+  .cover { text-align: center; padding: 60px 0 40px; border-bottom: 1px solid rgba(var(--line-rgb),0.10); margin-bottom: 40px; }
+  .cover-logo {
+    margin-bottom: 20px;
+  }
+  .cover-logo img {
+    width: 64px; height: 64px; object-fit: cover;
+    border-radius: 1rem;
+  }
+  .cover h1 { font-size: 28px; font-weight: 700; color: var(--h1-c, #4f74af); margin-bottom: 8px; }
+  .cover-sub { font-size: 16px; color: rgba(var(--brand-rgb),0.50); margin-bottom: 24px; }
+  .cover-meta { font-size: 13px; color: rgba(var(--brand-rgb),0.35); }
+  .cover-meta span { margin: 0 8px; }
+
+  .toc {
+    background: rgba(var(--line-rgb),0.06);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(var(--line-rgb),0.10);
+    border-radius: 1rem; padding: 24px 28px; margin-bottom: 40px;
+  }
+  .toc-title { font-size: 16px; font-weight: 600; color: var(--h1-c, #4f74af); margin-bottom: 16px; }
+  .toc-list { list-style: none; }
+  .toc-list li {
+    padding: 6px 0; font-size: 14px; color: rgba(var(--brand-rgb),0.55);
+    border-bottom: 1px solid rgba(var(--line-rgb),0.06);
+    display: flex; justify-content: space-between;
+  }
+  .toc-list li:last-child { border-bottom: none; }
+  .toc-list li a { color: rgba(var(--brand-rgb),0.75); text-decoration: none; }
+  .toc-list li a:hover { color: rgba(var(--brand-rgb),0.95); }
+
+  .section { margin-bottom: 40px; }
+  .section-num { font-size: 12px; color: rgba(var(--brand-rgb),0.50); font-weight: 600; margin-bottom: 4px; letter-spacing: 0.08em; }
+  .section h2 { font-size: 22px; font-weight: 700; color: var(--h2-c, #8567bd); margin-bottom: 16px; }
+  .section h3 { font-size: 16px; font-weight: 600; color: var(--h3-c, #4e9a8a); margin-bottom: 12px; margin-top: 20px; }
+  .section p { font-size: 14px; color: rgba(var(--brand-rgb),0.72); margin-bottom: 12px; line-height: 1.8; }
+
+  .cred { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700; margin-left: 3px; vertical-align: middle; }
+  .cred-t1 { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .cred-t2 { background: rgba(234,179,8,0.15); color: #facc15; }
+  .cred-t3 { background: rgba(var(--brand-rgb),0.10); color: rgba(var(--brand-rgb),0.55); }
+
+  .data-table {
+    width: 100%; margin: 16px 0;
+    border-collapse: separate; border-spacing: 0; /* collapse 会让圆角与裁剪失效 */
+    background: rgba(var(--line-rgb),0.06);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-radius: 0.75rem; overflow: hidden; border: 1px solid rgba(var(--line-rgb),0.10);
+  }
+  .data-table th { background: rgba(var(--brand-rgb),0.06); padding: 10px 14px; font-size: 12px; font-weight: 600; color: rgba(var(--brand-rgb),0.75); text-align: left; }
+  .data-table td { padding: 10px 14px; font-size: 13px; color: rgba(var(--brand-rgb),0.72); border-bottom: 1px solid rgba(var(--line-rgb),0.06); }
+  .data-table tr:last-child td { border-bottom: none; }
+
+  .report-chart { width: 100%; height: 280px; margin: 16px 0; }
+  .report-chart-sm { height: 200px; }
+  #chart-radar { height: 340px; }
+
+  .callout { border-radius: 0.75rem; padding: 14px 18px; margin: 16px 0; font-size: 13px; line-height: 1.7; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .callout-info { background: rgba(var(--line-rgb),0.06); border: 1px solid rgba(var(--brand-rgb),0.15); color: rgba(var(--brand-rgb),0.85); }
+  .callout-warning { background: rgba(234,179,8,0.06); border: 1px solid rgba(234,179,8,0.18); color: var(--warn-text, #854d0e); }
+  .callout-success { background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.18); color: var(--ok-text, #166534); }
+  .callout-danger { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.18); color: var(--bad-text, #991b1b); }
+  [data-theme="dark"] .callout-warning { color: rgba(253,230,138,0.92); }
+  [data-theme="dark"] .callout-success { color: rgba(134,239,172,0.92); }
+  [data-theme="dark"] .callout-danger { color: rgba(252,165,165,0.92); }
+  .callout-title { font-weight: 600; margin-bottom: 4px; }
+
+  .profile-card {
+    background: rgba(var(--line-rgb),0.06);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(var(--line-rgb),0.10); border-radius: 1rem; padding: 20px; margin: 16px 0;
+  }
+  .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .profile-label { font-size: 11px; color: rgba(var(--brand-rgb),0.42); margin-bottom: 2px; }
+  .profile-value { font-size: 14px; color: rgba(var(--brand-rgb),0.80); font-weight: 500; }
+
+  .highlight-box {
+    background: rgba(var(--line-rgb),0.06);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(var(--brand-rgb),0.15); border-radius: 1rem; padding: 20px; margin: 16px 0;
+  }
+  .highlight-box h4 { font-size: 14px; color: var(--h4-c, #c0765e); margin-bottom: 8px; }
+  .highlight-box p { font-size: 13px; color: rgba(var(--brand-rgb),0.72); }
+
+  .disclaimer {
+    background: rgba(var(--line-rgb),0.04);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(var(--line-rgb),0.10); border-radius: 0.75rem;
+    padding: 20px; margin-top: 40px; font-size: 12px; color: rgba(var(--brand-rgb),0.42); line-height: 1.8;
+  }
+  .disclaimer-title { font-size: 13px; font-weight: 600; color: rgba(var(--brand-rgb),0.55); margin-bottom: 8px; }
+
+  .report-footer { text-align: center; padding: 24px 0; border-top: 1px solid rgba(var(--line-rgb),0.10); margin-top: 24px; font-size: 12px; color: rgba(var(--brand-rgb),0.30); }
+
+  .wordcloud span { margin: 0 6px; line-height: 2.2; }
+  .wordcloud .wc-neg { color: #dc2626; }
+  .wordcloud .wc-pos { color: var(--h3-c, #4e9a8a); }
+  .wordcloud .wc-neu { color: rgba(var(--brand-rgb), var(--wc-o, 0.7)); }
+  .data-table td.sem-pos { color: var(--ok-text, #166534); font-weight: 600; }
+  .data-table td.sem-warn { color: var(--warn-text, #854d0e); font-weight: 600; }
+  .data-table td.sem-bad { color: var(--bad-text, #991b1b); font-weight: 600; }
+  .data-table td.sem-neu { color: rgba(var(--brand-rgb), 0.75); }
+  [data-theme="dark"] .data-table td.sem-pos { color: #4ade80; }
+  [data-theme="dark"] .data-table td.sem-warn { color: #fbbf24; }
+  [data-theme="dark"] .data-table td.sem-bad { color: #f87171; }
+  [data-theme="dark"] .data-table td.sem-neu { color: rgba(244,231,211,0.75); }
+  [data-theme="dark"] .wordcloud .wc-neg { color: #f87171; }
+  [data-theme="dark"] .wordcloud .wc-pos { color: #4ade80; }
+  .md-body { font-size: 14px; line-height: 1.9; color: rgba(var(--brand-rgb),0.72); }
+  .md-body strong { color: rgba(var(--brand-rgb),0.95); }
+  .md-body h2, .md-body h3 { color: rgba(var(--brand-rgb),0.92); margin: 14px 0 8px; }
+
+  /* 生成浮层 */
+  .gen-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(var(--bg-rgb), 0.88); backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .gen-panel {
+    width: 560px; max-width: 94vw;
+    max-height: 88vh; overflow-y: auto;
+    background: rgba(var(--panel-rgb),0.96); border: 1px solid rgba(var(--brand-rgb),0.15);
+    border-radius: 1.35rem; padding: 30px 32px;
+  }
+  .gen-panel h3 { font-size: 18px; margin-bottom: 8px; color: var(--h1-c, #4f74af); }
+  .gen-panel p { font-size: 13px; color: rgba(var(--brand-rgb),0.5); margin-bottom: 18px; line-height: 1.7; }
+  .gen-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .gen-row .gy-input { flex: 1; min-width: 0; padding: 9px 12px; font-size: 13px; }
+  .gen-row .gy-input.g-school { flex: 1.15; }
+  .gen-del {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+    border: 1px solid rgba(var(--line-rgb),0.10); background: rgba(var(--line-rgb),0.05);
+    color: rgba(var(--brand-rgb),0.45); cursor: pointer; font-size: 13px; line-height: 1;
+    transition: all 0.2s; font-family: inherit;
+  }
+  .gen-del:hover { color: rgba(252,165,165,0.95); border-color: rgba(239,68,68,0.30); background: rgba(239,68,68,0.08); }
+  .gen-del:disabled { opacity: 0.25; cursor: default; }
+  .gen-add {
+    width: 100%; margin-bottom: 12px; padding: 9px;
+    background: rgba(var(--line-rgb),0.04); border: 1px dashed rgba(var(--brand-rgb),0.18);
+    border-radius: 10px; color: rgba(var(--brand-rgb),0.55); font-size: 12.5px;
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+  }
+  .gen-add:hover { color: rgba(var(--brand-rgb),0.85); border-color: rgba(var(--brand-rgb),0.30); }
+  .gen-tip { font-size: 12px; color: rgba(var(--brand-rgb),0.40); margin-top: 12px; min-height: 18px; }
+  /* 底部铺满的生成主按钮 */
+  .gen-submit {
+    width: 100%; padding: 13px; font-size: 15px; font-weight: 600; letter-spacing: 0.08em;
+    background: var(--accent, #0e6e63); color: #fff;
+    border: none; border-radius: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all 0.2s; font-family: inherit;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  }
+  [data-theme="dark"] .gen-submit { color: #0f1f1c; }
+  .gen-submit:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,0.18); }
+  .gen-submit:disabled { opacity: 0.55; cursor: default; }
+
+  /* 我的报告列表面板 */
+  @keyframes rl-pop {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+  }
+  .rl-panel {
+    width: 640px; max-width: 94vw;
+    max-height: 88vh; display: flex; flex-direction: column;
+    background: rgba(var(--panel-rgb),0.97); border: 1px solid rgba(var(--brand-rgb),0.16);
+    border-radius: 1.5rem; padding: 26px 28px 22px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+    animation: rl-pop 0.28s cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  .rl-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .rl-header::before {
+    content: ''; width: 4px; height: 18px; border-radius: 2px;
+    background: linear-gradient(180deg, var(--h1-c, #4f74af), var(--h3-c, #4e9a8a));
+  }
+  .rl-header h3 { font-size: 19px; margin: 0; color: var(--h1-c, #4f74af); letter-spacing: 0.02em; }
+  .rl-count {
+    font-size: 11px; font-weight: 600; color: var(--h1-c, #4f74af);
+    padding: 2px 10px; border-radius: 999px;
+    background: rgba(var(--brand-rgb),0.07); border: 1px solid rgba(var(--brand-rgb),0.10);
+  }
+  .rl-sub { font-size: 12.5px; color: rgba(var(--brand-rgb),0.42); margin-bottom: 16px; line-height: 1.6; }
+  .rl-list { flex: 1; overflow-y: auto; margin: 0 -8px; padding: 6px 8px 10px; }
+  .rl-card:first-child { margin-top: 2px; }
+  .rl-list::-webkit-scrollbar { width: 5px; }
+  .rl-list::-webkit-scrollbar-track { background: transparent; }
+  .rl-list::-webkit-scrollbar-thumb { background: rgba(var(--brand-rgb),0.14); border-radius: 3px; }
+  .rl-card {
+    display: flex; align-items: flex-start; gap: 13px;
+    padding: 13px 15px; margin-bottom: 8px;
+    background: rgba(var(--line-rgb),0.04); border: 1px solid rgba(var(--line-rgb),0.09);
+    border-radius: 0.95rem; cursor: pointer; transition: all 0.22s ease;
+    position: relative; overflow: hidden;
+  }
+  .rl-card:hover {
+    background: rgba(var(--brand-rgb),0.055); border-color: rgba(var(--brand-rgb),0.20);
+    transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.07);
+  }
+  .rl-card.active {
+    border-color: rgba(var(--brand-rgb),0.22);
+    background: rgba(var(--brand-rgb),0.065);
+    box-shadow: inset 0 0 0 1px rgba(var(--brand-rgb),0.06);
+  }
+  .rl-card.active::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 8px;
+    background: linear-gradient(180deg, var(--h1-c, #4f74af), var(--h3-c, #4e9a8a));
+  }
+  .rl-icon {
+    flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px;
+    background:
+      linear-gradient(140deg, rgba(255,255,255,0.10), rgba(0,0,0,0.05)),
+      rgba(var(--brand-rgb),0.08);
+    border: 1px solid rgba(var(--brand-rgb),0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--h1-c, #4f74af); margin-top: 1px;
+    transition: all 0.22s ease;
+  }
+  .rl-card.active .rl-icon { color: #fff; background: linear-gradient(140deg, rgba(255,255,255,0.16), rgba(0,0,0,0.10)), var(--h1-c, #4f74af); border-color: transparent; }
+  .rl-body { flex: 1; min-width: 0; }
+  .rl-title { font-size: 14px; font-weight: 600; color: rgba(var(--brand-rgb),0.90); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rl-meta { font-size: 12px; color: rgba(var(--brand-rgb),0.42); display: flex; gap: 12px; flex-wrap: wrap; }
+  .rl-meta-item { display: inline-flex; align-items: center; gap: 4px; }
+  .rl-meta-item svg { opacity: 0.75; }
+  .rl-cands { display: flex; gap: 5px; margin-top: 9px; flex-wrap: wrap; }
+  .rl-cand-tag {
+    font-size: 11px; padding: 2px 9px; border-radius: 999px;
+    background: rgba(var(--brand-rgb),0.06); color: rgba(var(--brand-rgb),0.62);
+    border: 1px solid rgba(var(--line-rgb),0.10);
+  }
+  .rl-del {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+    border: none; background: transparent; color: rgba(var(--brand-rgb),0.25);
+    cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+  }
+  .rl-card:hover .rl-del { opacity: 1; }
+  .rl-del:hover { color: rgba(252,165,165,0.95); background: rgba(239,68,68,0.10); }
+  .rl-empty {
+    text-align: center; padding: 40px 20px; font-size: 13px; color: rgba(var(--brand-rgb),0.40); line-height: 1.9;
+    border: 1px dashed rgba(var(--brand-rgb),0.16); border-radius: 0.95rem; margin-bottom: 8px;
+  }
+  .rl-footer { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(var(--line-rgb),0.08); }
+  .rl-footer .gen-submit { margin: 0; }
+
+  /* 追问 Agent 主按钮：accent 渐变胶囊 + 气泡图标 */
+  .ph-btn.primary {
+    gap: 6px; padding: 7px 16px; border: none; border-radius: 10px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(0,0,0,0.10)), var(--accent, #0e6e63);
+    color: #fff; font-weight: 600; letter-spacing: 0.02em;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+  }
+  [data-theme="dark"] .ph-btn.primary { color: #0f1f1c; }
+  .ph-btn.primary:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.22), rgba(0,0,0,0.08)), var(--accent, #0e6e63);
+    color: #fff; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.16);
+  }
+  [data-theme="dark"] .ph-btn.primary:hover { color: #0f1f1c; }
+  .ph-btn.primary svg { width: 14px; height: 14px; }
+
+  @media (max-width: 768px) {
+    .ph-btn.has-icon { padding: 8px 9px; }
+    .ph-btn.has-icon .lbl { display: none; }
+    .ph-btn.has-icon svg { width: 15px; height: 15px; }
+    .ph-btn.primary { padding: 8px 12px; }
+    .ph-btn.primary svg { display: none; }
+    .report { padding: 20px 16px calc(90px + env(safe-area-inset-bottom, 0px)); margin-left: 0 !important; margin-right: 0 !important; max-width: none; }
+    .page-header { position: sticky; top: 0; backdrop-filter: blur(16px); z-index: 30; }
+    .page-header .ph-actions .ph-btn:not(.primary) { padding: 6px 10px; font-size: 11.5px; }
+    .data-table { display: block; overflow-x: auto; white-space: nowrap; }
+    .gen-panel, .rl-panel { width: auto !important; max-width: none !important; margin: 0 10px !important; height: auto; max-height: calc(100dvh - 30px); align-self: flex-end; border-radius: 1.3rem 1.3rem 0 0 !important; }
+  }
+  @media print {
+    .page-header, .nav-sidebar, .gen-overlay { display: none !important; }
+    body { background: var(--bg-elevated); color: #222; }
+    .report { margin-left: 0; }
+    .report h1, .report h2, .report h3, .report p, .report td, .report th, .report .toc-list li { color: #333; }
+  }
+
+/* ── DEMO MODE Badge ── */
+.demo-badge {
+  position: fixed; bottom: 16px; right: 16px; z-index: 99999;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1a1a1a; background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+  pointer-events: none; user-select: none;
+  animation: demoBadgePulse 3s ease-in-out infinite;
+}
+@keyframes demoBadgePulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@media (max-width: 767px) {
+  .demo-badge { bottom: 72px; right: 10px; font-size: 10px; padding: 5px 10px; }
+}
+
+</style>
+</head>
+<body>
+<div class="demo-badge">DEMO MODE</div>
+<div data-nav="report"></div>
+
+<div data-header></div>
+
+<div class="report" id="reportRoot">
+  <div class="cover">
+    <div class="cover-logo"><img src="assets/favicon.png" alt="研屿"></div>
+    <h1>考研择校深度分析报告</h1>
+    <div class="cover-sub">基于 7 平台舆情数据 + 官方数据的综合分析</div>
+    <div class="cover-meta">加载中…</div>
+  </div>
+</div>
+
+<!-- 生成浮层（无 id 参数时展示） -->
+<div class="gen-overlay" id="genOverlay" style="display:none">
+  <div class="gen-panel">
+    <button class="close-btn" onclick="closeGenOverlay()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3>生成择校分析报告</h3>
+    <p>由你设定候选院校（可多所，顺序即建议排序参考）。Agent 会聚合舆情指标与官方数据，结合你的画像现写完整报告（约 10-30 秒）。</p>
+    <div id="genRows"></div>
+    <button class="gen-add" id="genAddBtn" onclick="addGenRow()">＋ 添加候选院校</button>
+    <button class="gen-submit" id="genBtn" onclick="genReport()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      生成报告
+    </button>
+    <div class="gen-tip" id="genTip"></div>
+  </div>
+</div>
+
+<!-- 我的报告列表面板 -->
+<div class="gen-overlay" id="listOverlay" style="display:none">
+  <div class="rl-panel">
+    <button class="close-btn" onclick="closeList()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="rl-header">
+      <h3>我的报告</h3>
+      <span class="rl-count" id="rlCount">0 份</span>
+    </div>
+    <div class="rl-sub">点击报告卡片在页面内直接渲染，或生成新的分析报告</div>
+    <div class="rl-list" id="listItems"></div>
+    <div class="rl-footer">
+      <button class="gen-submit" onclick="closeList(); openGenOverlay()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>生成新报告</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js?v=18"></script>
+<script src="assets/vendor/echarts.min.js"></script>
+<script>
+document.querySelector('[data-nav]').outerHTML = navSidebar('report');
+mountHeader('研屿 · 择校分析报告',
+  `<button class="ph-btn has-icon" onclick="openReportsList()" title="我的报告"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span class="lbl">我的报告</span></button>
+   <button class="ph-btn has-icon" onclick="window.print()" title="打印 / PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span class="lbl">打印 / PDF</span></button>
+   <button class="ph-btn has-icon" onclick="shareReport()" title="分享链接"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span class="lbl">分享链接</span></button>
+   <button class="ph-btn has-icon" onclick="openGenOverlay()" title="生成新报告"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg><span class="lbl">生成新报告</span></button>
+   <button class="ph-btn primary" onclick="location.href='agent-chat.html'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>追问 Agent</button>`,
+  { subId: true });
+
+const EVAL_NUM = { 'A+': 100, 'A': 95, 'A-': 90, 'B+': 85, 'B': 80, 'B-': 75, 'C+': 70, 'C': 65 };
+const warmPalette = ['#d4a853', '#7aad6a', '#c46b5c', '#a08060', '#8ca5c8'];
+let charts = [];
+function cssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+const brand = () => cssVar('--brand-rgb', '244, 231, 211');
+const axisColor = () => `rgba(${brand()}, 0.35)`;
+const splitColor = () => `rgba(${cssVar('--line-rgb', '255, 255, 255')}, 0.06)`;
+const tt = () => ({
+  backgroundColor: `rgba(${cssVar('--panel-rgb', '15, 14, 12')}, 0.92)`,
+  borderColor: `rgba(${brand()}, 0.15)`,
+  textStyle: { color: `rgba(${brand()}, 0.88)` },
+});
+
+function chart(id) {
+  const el = document.getElementById(id);
+  if (!el || !window.echarts) return null;
+  const c = echarts.init(el);
+  charts.push(c);
+  return c;
+}
+
+
+function stars(n) {
+  return `<span style="color:rgba(251,191,36,0.9)">${'★'.repeat(n)}</span><span style="color:rgba(${brand()},0.18)">${'★'.repeat(Math.max(0, 5 - n))}</span>`;
+}
+
+// ── 拉报告并渲染 ──
+async function loadReport(id) {
+  const root = document.getElementById('reportRoot');
+  const r = await api(`/reports/${id}`);
+  const content = r.content || {};
+  const cands = content.candidates || [];
+  const stage = content.stage || {};
+  const phSub = document.getElementById('phSub'); if (phSub) phSub.textContent = `生成于 ${(r.created_at || '').slice(0, 10)}`;
+  document.getElementById('genOverlay').style.display = 'none';
+
+  // 每校补充数据：学校信息（tier/省份）、跨平台、热词、就业情感
+  const extra = await Promise.all(cands.map(async (c) => {
+    const school = c.input?.school || '';
+    const major = c.input?.major || '';
+    const enc = s => encodeURIComponent(s);
+    const out = { school, major };
+    try {
+      const s = await publicApi(`/search?q=${enc(school)}`);
+      const hit = (s.schools || []).find(x => x.name.includes(school) || school.includes(x.name) || x.name === school);
+      out.schoolInfo = hit || null;
+    } catch (e) { /* ignore */ }
+    try {
+      out.platforms = await api(`/sentiment/cross-platform?school=${enc(school)}${major ? '&major=' + enc(major) : ''}`);
+    } catch (e) { /* ignore */ }
+    try {
+      out.topics = await api(`/sentiment/trending-topics?school=${enc(school)}${major ? '&major=' + enc(major) : ''}`);
+    } catch (e) { /* ignore */ }
+    try {
+      out.employment = await api(`/employment-sentiment?major=${enc(major || '计算机')}`);
+    } catch (e) { /* ignore */ }
+    return out;
+  }));
+
+  renderReport(r, content, cands, extra);
+}
+
+function renderReport(r, content, cands, extra) {
+  window.__lastRenderArgs = [r, content, cands, extra];
+  const profile = content.profile || {};
+  const bg = profile.background || {};
+  const inferred = profile.inferred_profile || {};
+  const stage = content.stage || {};
+  const root = document.getElementById('reportRoot');
+
+  // 综合评分与推荐度
+  const scored = cands.map((c, i) => {
+    const h = c.heat || {};
+    const d = c.discouragement?.discouragement_index ?? 0.3;
+    const b = c.baoyan?.baoyan_pressure ?? 0.4;
+    const g = c.info_gap?.info_gap ?? 0;
+    const ex = c.initial_vs_reexam || {};
+    const reRatio = (ex.initial_discussion + ex.reexam_discussion) > 0
+      ? ex.reexam_discussion / (ex.initial_discussion + ex.reexam_discussion) : 0.4;
+    const emp = extra[i].employment?.series ? null : null;
+    const evalV = EVAL_NUM[c.info_gap?.discipline_evaluation] ?? 65;
+    const fairness = Math.round(100 - reRatio * 100);
+    const friendly = Math.round(100 - d * 100);
+    const gapScore = Math.round((g + 1) * 50);
+    const empScore = 70; // 就业维度在 S5 图中以趋势呈现，此处用中性基准
+    const composite = Math.round(evalV * 0.25 + fairness * 0.20 + friendly * 0.15
+      + Math.max(0, 100 - (h.mhi ?? 60)) * 0.15 + gapScore * 0.15 + empScore * 0.10);
+    return { ...c, i, evalV, fairness, friendly, gapScore, composite, stars: Math.max(2, Math.min(5, Math.round(composite / 20))) };
+  }).sort((a, b) => b.composite - a.composite);
+
+  const metaBits = [];
+  if (bg.school_tier || bg.major) metaBits.push(`<span>考生：${esc(bg.school_tier || '')}${bg.major ? ' · ' + esc(bg.major) : ''}</span>`);
+  if (cands.length) metaBits.push(`<span>候选院校：${cands.length} 所</span>`);
+  metaBits.push(`<span>生成时间：${(r.created_at || '').slice(0, 16).replace('T', ' ')}</span>`);
+  metaBits.push(`<span>阶段：${esc(stage.stage_name || '—')}</span>`);
+
+  root.innerHTML = `
+  <div class="cover">
+    <div class="cover-logo"><img src="assets/favicon.png" alt="研屿"></div>
+    <h1>考研择校深度分析报告</h1>
+    <div class="cover-sub">基于 7 平台舆情数据 + 官方数据的综合分析</div>
+    <div class="cover-meta">${metaBits.join('·')}</div>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">目录</div>
+    <ul class="toc-list">
+      <li><a href="#s1">一、考生画像摘要</a></li>
+      <li><a href="#s2">二、候选院校概览</a></li>
+      <li><a href="#s3">三、官方数据面板</a></li>
+      <li><a href="#s4">四、舆情热度分析</a></li>
+      <li><a href="#s5">五、竞争态势评估</a></li>
+      <li><a href="#s6">六、导师与方向分析</a></li>
+      <li><a href="#s7">七、趋势预测</a></li>
+      <li><a href="#s8">八、个性化建议</a></li>
+      <li><a href="#s9">九、风险提示与免责声明</a></li>
+    </ul>
+  </div>
+
+  <!-- S1 画像 -->
+  <div class="section" id="s1">
+    <div class="section-num">SECTION 01</div>
+    <h2>一、考生画像摘要</h2>
+    <p>基于你在画像预分析中的回答，Agent 推断出以下决策特征：</p>
+    <div class="profile-card">
+      <div class="profile-grid">
+        <div class="profile-item"><div class="profile-label">本科背景</div>
+          <div class="profile-value">${esc(bg.school_tier || '—')}${bg.major ? ' · ' + esc(bg.major) : ''}${bg.gpa_rank ? ' · ' + esc(bg.gpa_rank) : ''}</div></div>
+        <div class="profile-item"><div class="profile-label">考研动机</div>
+          <div class="profile-value">${esc(profile.motivation || '—')}</div></div>
+        <div class="profile-item"><div class="profile-label">决策风格</div>
+          <div class="profile-value" style="color:${inferred.decision_style === 'aggressive' ? '#f87171' : '#4ade80'};">${esc(profile.risk_preference || ({ aggressive: '激进 · 愿意冲高', risk_averse: '偏稳 · 求上岸', balanced: '均衡' }[inferred.decision_style]) || '—')}</div></div>
+        <div class="profile-item"><div class="profile-label">核心关注</div>
+          <div class="profile-value">${esc((profile.priorities || []).join('、') || '—')}</div></div>
+        <div class="profile-item"><div class="profile-label">硬性约束</div>
+          <div class="profile-value" style="color:#fbbf24;">${esc((profile.hard_constraints || []).join('、') || '无')}</div></div>
+        <div class="profile-item"><div class="profile-label">焦虑点</div>
+          <div class="profile-value" style="color:#f87171;">${esc(profile.anxiety_points || '—')}</div></div>
+      </div>
+    </div>
+    ${inferred.key_dimensions ? `
+    <div class="callout callout-info">
+      <div class="callout-title">Agent 分析策略</div>
+      基于你的画像，本报告重点关注：${esc((inferred.key_dimensions || []).map((k, i) => `${i + 1}）${k}`).join('；'))}。
+      ${inferred.sensitive_signals?.length ? `对每所候选院校，Agent 额外关注了「${esc(inferred.sensitive_signals.join('」「'))}」类信号。` : ''}
+    </div>` : ''}
+  </div>
+
+  <!-- S2 概览 -->
+  <div class="section" id="s2">
+    <div class="section-num">SECTION 02</div>
+    <h2>二、候选院校概览</h2>
+    <p>Agent 深度分析了以下 ${cands.length} 所候选院校（按综合匹配度排序）：</p>
+    <table class="data-table">
+      <thead><tr><th>院校</th><th>层次</th><th>学科评估</th><th>所在地</th><th>推荐度</th></tr></thead>
+      <tbody>
+        ${scored.map(c => `<tr>
+          <td>${esc(c.heat?.school || c.input?.school)}</td>
+          <td>${esc(extra[c.i].schoolInfo?.tier || '—')}</td>
+          <td>${esc(c.info_gap?.discipline_evaluation || '—')}</td>
+          <td>${esc(extra[c.i].schoolInfo?.province || '—')}${extra[c.i].schoolInfo?.city ? ' · ' + esc(extra[c.i].schoolInfo.city) : ''}</td>
+          <td>${stars(c.stars)} <span style="font-size:11px;color:rgba(${brand()},0.45)">(${c.stars}/5)</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <p>推荐度由学科实力、复试讨论结构、舆论环境、热度水位与信息差机会加权合成。<span class="cred cred-t3">T3</span></p>
+  </div>
+
+  <!-- S3 官方数据 -->
+  <div class="section" id="s3">
+    <div class="section-num">SECTION 03</div>
+    <h2>三、官方数据面板</h2>
+    <h3>3.1 近5年分数线对比</h3>
+    <div id="chart-score" class="report-chart"></div>
+    <p>数据来源：各校研究生院官网公布的复试基本分数线。<span class="cred cred-t1">T1</span></p>
+    <h3>3.2 统考招生名额变化（计划 - 推免）</h3>
+    <table class="data-table">
+      <thead><tr><th>院校</th>${[2022, 2023, 2024, 2025, 2026].map(y => `<th>${y}</th>`).join('')}<th>趋势</th></tr></thead>
+      <tbody>
+        ${scored.map(c => {
+          const enr = c.enrollment?.series || [];
+          const byYear = Object.fromEntries(enr.map(e => [e.year, e]));
+          const vals = [2022, 2023, 2024, 2025, 2026].map(y => {
+            const e = byYear[y];
+            return (e && e.planned != null) ? (e.planned - (e.exemption || 0)) : null;
+          });
+          const first = vals.find(v => v !== null), last = [...vals].reverse().find(v => v !== null);
+          const trend = (first && last) ? `${((last - first) / first * 100) >= 0 ? '+' : ''}${((last - first) / first * 100).toFixed(0)}%` : '—';
+          const tColor = trend.startsWith('-') ? 'color:#f87171' : 'color:#4ade80';
+          return `<tr><td>${esc(c.heat?.school || c.input?.school)}</td>
+            ${vals.map(v => `<td>${v ?? '—'}</td>`).join('')}
+            <td style="${tColor}">${trend}</td></tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <p>统考名额 = 计划招生 - 推免录取，是统考生的真实竞争盘子。<span class="cred cred-t1">T1</span></p>
+  </div>
+
+  <!-- S4 舆情热度 -->
+  <div class="section" id="s4">
+    <div class="section-num">SECTION 04</div>
+    <h2>四、舆情热度分析</h2>
+    <h3>4.1 各平台讨论量分布</h3>
+    <div id="chart-platforms" class="report-chart"></div>
+    <p>数据来源：知乎、小红书、贴吧、考研帮、微博、B站、抖音、搜索聚合。<span class="cred cred-t3">T3</span></p>
+    <h3>4.2 情感分布</h3>
+    <table class="data-table">
+      <thead><tr><th>院校</th>${['焦虑', '乐观', '中性', '劝退'].map(x => `<th>${x}</th>`).join('')}<th>主导情感</th></tr></thead>
+      <tbody>
+        ${scored.map(c => {
+          const dist = c.sentiment?.distribution || {};
+          const val = k => dist[k] ? `${(dist[k].ratio * 100).toFixed(0)}%` : '—';
+          const dominant = Object.entries(dist).sort((a, b) => b[1].ratio - a[1].ratio)[0]?.[0];
+          const domCn = { anxious: ['焦虑导向', 'sem-warn'], optimistic: ['偏正面', 'sem-pos'], neutral: ['中性', 'sem-neu'], discouraging: ['劝退偏多', 'sem-bad'] }[dominant] || ['—', ''];
+          return `<tr><td>${esc(c.heat?.school || c.input?.school)}</td>
+            <td>${val('anxious')}</td><td>${val('optimistic')}</td><td>${val('neutral')}</td><td>${val('discouraging')}</td>
+            <td class="${domCn[1]}">${domCn[0]}</td></tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <p>情感由 NLP 模型对帖子摘要分类聚合，焦虑与劝退占比高时需结合热度趋势判断自反效应。<span class="cred cred-t3">T3</span></p>
+    <h3>4.3 热门话题词云</h3>
+    ${scored.map((c, idx) => {
+      const topics = (extra[c.i].topics?.topics || []).slice(0, 8);
+      if (!topics.length) return '';
+      const negWords = ['缩招', '劝退', '压分', '歧视', '延毕', '不公平', '卷', '复试被刷', '快跑', '血泪'];
+      return `<div class="callout callout-${idx % 2 === 0 ? 'info' : 'danger'}">
+        <div class="callout-title">${esc(c.heat?.school || c.input?.school)} 高频词</div>
+        <p class="wordcloud" style="font-size:14px;line-height:2.2">
+          ${topics.map((t, i) => {
+            const neg = negWords.some(w => t.keyword.includes(w));
+            const cls = neg ? 'wc-neg' : (['上岸', '公平', '香', '性价比'].some(w => t.keyword.includes(w)) ? 'wc-pos' : 'wc-neu');
+            return `<span class="${cls}" style="font-size:${Math.max(13, 20 - i * 2)}px;--wc-o:${(0.95 - i * 0.09).toFixed(2)};font-weight:${i < 2 ? 700 : 500}">${esc(t.keyword)}</span>`;
+          }).join('·')}
+        </p>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <!-- S5 竞争态势 -->
+  <div class="section" id="s5">
+    <div class="section-num">SECTION 05</div>
+    <h2>五、竞争态势评估</h2>
+    <h3>5.1 综合竞争指标</h3>
+    <div id="chart-radar" class="report-chart"></div>
+    <h3>5.2 关键发现</h3>
+    ${scored.map(c => {
+      const h = c.heat || {};
+      const sig = h.self_fulfilling_signal;
+      const posts = (c.posts?.posts || []).slice(0, 2);
+      const sigTxt = sig === 'cooling_off'
+        ? `检测到「舆论自我降温」信号：劝退指数 ${c.discouragement?.discouragement_index ?? '—'} 处于高位且热度环比回落 ${signed(h.mom_growth)}，部分负面讨论可能在吓退潜在竞争者。`
+        : sig === 'warming_hype'
+          ? `检测到「自我实现升温」信号：讨论量快速上涨且劝退占比低，涌入效应可能使实际竞争高于预期。`
+          : `热度 MHI ${h.mhi ?? '—'}，环比 ${signed(h.mom_growth)}；劝退指数 ${c.discouragement?.discouragement_index ?? '—'}。`;
+      const postTxt = posts.length ? `一线声音参考：「${esc(posts[0].snippet.slice(0, 46))}…」（${esc(posts[0].platform)}）` : '';
+      return `<div class="highlight-box">
+        <h4>信号：${esc(h.school || c.input?.school)} · ${esc(h.major || c.input?.major)}</h4>
+        <p>${sigTxt} ${postTxt}<span class="cred cred-t3">T3</span></p>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <!-- S6 导师与方向 -->
+  <div class="section" id="s6">
+    <div class="section-num">SECTION 06</div>
+    <h2>六、导师与方向分析</h2>
+    <p>Agent 基于全网讨论数据，整理了各院校研究方向的舆情概况：<span class="cred cred-t3">T3</span></p>
+    <table class="data-table">
+      <thead><tr><th>院校</th><th>方向</th><th>讨论量</th><th>负面占比</th><th>竞争评估</th></tr></thead>
+      <tbody>
+        ${(() => {
+          const rows = [];
+          for (const c of scored) {
+            const dirs = (c.advisor?.by_direction || []).slice(0, 3);
+            if (!dirs.length) {
+              rows.push(`<tr><td>${esc(c.heat?.school || c.input?.school)}</td><td colspan="4" style="color:rgba(${brand()},0.5)">暂无足够导师讨论样本</td></tr>`);
+              continue;
+            }
+            for (const d of dirs) {
+              const heat = d.mentions >= 8 ? ['极高', '#f87171'] : d.mentions >= 4 ? ['中等', '#fbbf24'] : ['低', '#4ade80'];
+              const neg = d.negative_ratio ?? 0;
+              const negC = neg >= 0.5 ? '#f87171' : neg >= 0.25 ? '#fbbf24' : '#4ade80';
+              rows.push(`<tr>
+                <td>${esc(c.heat?.school || c.input?.school)}</td>
+                <td>${esc(d.direction)}</td>
+                <td style="color:${heat[1]}">${heat[0]}（${d.mentions}）</td>
+                <td style="color:${negC}">${pct(neg)}</td>
+                <td>${neg >= 0.5 ? '需谨慎，负面集中' : neg >= 0.25 ? '关注具体导师' : '舆论相对友好'}</td>
+              </tr>`);
+            }
+          }
+          return rows.join('');
+        })()}
+      </tbody>
+    </table>
+    <p>导师评价高度主观且集中出现在极端体验后，负面集中不等于普遍情况；建议结合具体方向与学长学姐经验交叉验证。</p>
+  </div>
+
+  <!-- S7 趋势预测 -->
+  <div class="section" id="s7">
+    <div class="section-num">SECTION 07</div>
+    <h2>七、趋势预测</h2>
+    <h3>7.1 分数线预测区间</h3>
+    <table class="data-table">
+      <thead><tr><th>院校</th><th>预测区间</th><th>舆情调整</th><th>历史趋势</th></tr></thead>
+      <tbody>
+        ${scored.map(c => {
+          const p = c.predict_score || {};
+          const iv = p.predicted_interval;
+          const adj = p.adjustment?.value ?? 0;
+          return `<tr>
+            <td>${esc(c.heat?.school || c.input?.school)}</td>
+            <td>${iv ? `${iv[0]} - ${iv[1]}` : '—'}</td>
+            <td style="color:${adj >= 0 ? '#f87171' : '#4ade80'}">${adj >= 0 ? '+' : ''}${adj} 分</td>
+            <td>${p.trend_slope_per_year != null ? `每年 ${p.trend_slope_per_year >= 0 ? '+' : ''}${p.trend_slope_per_year} 分` : '—'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <div class="callout callout-warning">
+      <div class="callout-title">预测说明</div>
+      分数线预测 = 历史趋势外推（T1）+ 舆情动量调整（T3），置信度低，仅供参考。实际分数线受当年试题难度、报考人数等多因素影响。
+    </div>
+    <h3>7.2 热度走向</h3>
+    ${scored.map(c => {
+      const t = c.predict_heat || {};
+      const cn = { rising: '上升', falling: '回落', stable: '平稳' }[t.direction] || '—';
+      const cMap = { rising: '#f87171', falling: '#4ade80', stable: `rgba(${brand()},0.7)` };
+      return `<p><strong>${esc(c.heat?.school || c.input?.school)}</strong>：${cn}（7日动量 ${signed(t.momentum_7d_vs_prev7d)}，30日动量 ${signed(t.momentum_30d_vs_prev30d)}）—— ${esc(t.rationale || '')}<span class="cred cred-t3">T3</span></p>`;
+    }).join('')}
+  </div>
+
+  <!-- S8 个性化建议 -->
+  <div class="section" id="s8">
+    <div class="section-num">SECTION 08</div>
+    <h2>八、个性化建议</h2>
+    ${scored.map((c, idx) => {
+      const h = c.heat || {};
+      const cls = idx === 0 ? 'callout-success' : idx === scored.length - 1 && c.stars <= 3 ? 'callout-danger' : 'callout-info';
+      const label = idx === 0 ? '综合匹配度最高' : idx === scored.length - 1 ? '需要谨慎评估' : '备选方案';
+      return `<div class="callout ${cls}">
+        <div class="callout-title">${label}：${esc(h.school || c.input?.school)} · ${esc(h.major || c.input?.major)}</div>
+        <p>综合匹配度 ${c.composite}/100（${stars(c.stars)}）。热度 MHI ${h.mhi ?? '—'}（环比 ${signed(h.mom_growth)}），劝退 ${c.discouragement?.discouragement_index ?? '—'}，信息差 ${c.info_gap?.info_gap ?? '—'}${c.info_gap?.info_gap > 0.1 ? '（被低估，可重点关注）' : ''}，预测分数线 ${(c.predict_score?.predicted_interval || []).join(' - ') || '—'}。</p>
+      </div>`;
+    }).join('')}
+    <div class="highlight-box">
+      <h4>Agent 综合分析</h4>
+      <div class="md-body">${mdLite(content_markdown_of(r))}</div>
+    </div>
+  </div>
+
+  <!-- S9 免责 -->
+  <div class="section" id="s9">
+    <div class="section-num">SECTION 09</div>
+    <h2>九、风险提示与免责声明</h2>
+    <div class="disclaimer">
+      <div class="disclaimer-title">免责声明</div>
+      <p>${esc(content.disclaimer || '本分析基于互联网舆情数据和历史趋势，不构成报考建议。')}</p>
+      <br>
+      <p>数据可信度说明：</p>
+      <p>• <span class="cred cred-t1">T1</span> 绿色标签 = 官方数据（研招网、院校官网），可信度最高</p>
+      <p>• <span class="cred cred-t2">T2</span> 黄色标签 = 半官方汇总（考研帮整理、教育在线），可信度中等</p>
+      <p>• <span class="cred cred-t3">T3</span> 灰色标签 = 舆情推算（论坛讨论量推算、情感分析结果），仅供参考</p>
+      <br>
+      <p>本报告由 AI Agent 自动生成，分析过程中可能存在数据不完整、模型偏差等问题。建议将本报告作为决策参考之一，而非唯一依据。</p>
+    </div>
+  </div>
+
+  <div class="report-footer">研屿 · 报告编号 #${esc(r.id.slice(0, 8))} · 考研是一次性博弈，愿你做对这次选择</div>`;
+
+  drawCharts(scored, extra);
+  document.getElementById('reportRoot').scrollTop = 0;
+  window.__reportId = r.id;
+  window.__currentReport = r;
+}
+
+function content_markdown_of(r) { return r.content_markdown || '（Agent 未生成个性化章节）'; }
+
+// ── 图表 ──
+function drawCharts(scored, extra) {
+  charts.forEach(c => c.dispose()); charts = [];
+  const names = scored.map(c => c.heat?.school || c.input?.school || '');
+  // 图例/轴文字：跟随主题并保证可读性（浅色深墨、深色奶油，不低于 70% 不透明度）
+  const axisColor = () => `rgba(${brand()}, 0.72)`;
+  const splitColor = () => `rgba(${cssVar('--line-rgb', '255, 255, 255')}, 0.10)`;
+
+  // S3 分数线折线
+  const years = [2022, 2023, 2024, 2025, 2026];
+  const sc = chart('chart-score');
+  if (sc) sc.setOption({
+    tooltip: { trigger: 'axis', ...tt() },
+    legend: { data: names, textStyle: { color: axisColor() }, top: 0 },
+    grid: { left: 50, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: 'category', data: years.map(String), axisLine: { lineStyle: { color: splitColor() } }, axisLabel: { color: axisColor() } },
+    yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: splitColor() } }, axisLabel: { color: axisColor() } },
+    series: scored.map((c, i) => {
+      const byYear = Object.fromEntries((c.score_lines?.series || []).map(s => [s.year, s.total]));
+      return {
+        name: names[i], type: 'line', smooth: true,
+        data: years.map(y => byYear[y] ?? null),
+        lineStyle: { color: warmPalette[i % 4], width: 2 }, itemStyle: { color: warmPalette[i % 4] },
+      };
+    }),
+  });
+
+  // S4 平台分布（堆叠横条）
+  const platNames = ['知乎', '小红书', '贴吧', '考研帮', '微博', 'B站', '抖音', 'search_api'];
+  const platKey = { '知乎': 'zhihu', '小红书': 'xiaohongshu', '贴吧': 'tieba', '考研帮': 'kaoyanbang', '微博': 'weibo', 'B站': 'bilibili', '抖音': 'douyin', 'search_api': 'search_api' };
+  const pc = chart('chart-platforms');
+  if (pc) pc.setOption({
+    tooltip: { trigger: 'axis', ...tt() },
+    legend: { data: names, textStyle: { color: axisColor() }, top: 0 },
+    grid: { left: 80, right: 20, top: 40, bottom: 24 },
+    yAxis: { type: 'category', data: platNames, axisLine: { lineStyle: { color: splitColor() } }, axisLabel: { color: axisColor() } },
+    xAxis: { type: 'value', splitLine: { lineStyle: { color: splitColor() } }, axisLabel: { color: axisColor() } },
+    series: scored.map((c, i) => {
+      const byPlat = Object.fromEntries((extra[c.i].platforms?.platforms || []).map(p => [p.platform, p.posts]));
+      return {
+        name: names[i], type: 'bar', stack: 'total',
+        data: platNames.map(n => byPlat[platKey[n]] ?? 0),
+        itemStyle: { color: warmPalette[i % 4] },
+      };
+    }),
+  });
+
+  // S5 雷达
+  const rc = chart('chart-radar');
+  if (rc) rc.setOption({
+    tooltip: tt(),
+    legend: { data: names, textStyle: { color: axisColor() }, top: 0 },
+    radar: {
+      indicator: [
+        { name: '学科实力', max: 100 }, { name: '热度水位(逆)', max: 100 }, { name: '复试结构', max: 100 },
+        { name: '舆论友好', max: 100 }, { name: '信息差机会', max: 100 }, { name: '趋势动量(逆)', max: 100 },
+      ],
+      shape: 'polygon', splitNumber: 4, center: ['50%', '62%'], radius: '58%',
+      axisName: { color: axisColor(), fontSize: 12 },
+      splitLine: { lineStyle: { color: splitColor() } }, splitArea: { show: false },
+      axisLine: { lineStyle: { color: `rgba(${cssVar('--line-rgb', '255, 255, 255')}, 0.12)` } },
+    },
+    series: [{
+      type: 'radar',
+      data: scored.map((c, i) => {
+        const h = c.heat || {};
+        const ex = c.initial_vs_reexam || {};
+        const total = (ex.initial_discussion || 0) + (ex.reexam_discussion || 0);
+        const reRatio = total > 0 ? ex.reexam_discussion / total : 0.4;
+        return {
+          value: [
+            c.evalV,
+            Math.max(0, 100 - (h.mhi ?? 60)),
+            Math.round(100 - reRatio * 100),
+            c.friendly,
+            c.gapScore,
+            Math.max(0, Math.min(100, 50 - (h.mom_growth ?? 0) * 100)),
+          ],
+          name: names[i],
+          lineStyle: { color: warmPalette[i % 4] },
+          areaStyle: { color: hexA(warmPalette[i % 4], 0.12) },
+          itemStyle: { color: warmPalette[i % 4] },
+        };
+      }),
+    }],
+  });
+  if (!window.__chartResizeHooked) {
+    window.__chartResizeHooked = true;
+    window.addEventListener('resize', () => charts.forEach(c => c.resize()));
+  }
+}
+// 主题切换 → 用缓存的报告参数整篇重渲染（正文内联色 + 图表全部按当前 CSS 变量重算）
+onThemeRedraw(() => { if (window.__lastRenderArgs) renderReport(...window.__lastRenderArgs); });
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+// ── 分享 ──
+async function shareReport() {
+  if (!window.__reportId) return;
+  try {
+    const r = await api(`/reports/${window.__reportId}/share`, { method: 'POST' });
+    await navigator.clipboard.writeText(location.origin + r.share_url);
+    toast('分享链接已复制到剪贴板');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── 我的报告列表 ──
+async function openReportsList() {
+  document.getElementById('listOverlay').style.display = 'flex';
+  const box = document.getElementById('listItems');
+  const countEl = document.getElementById('rlCount');
+  box.innerHTML = `<div style="font-size:12px;color:rgba(${brand()},0.45);padding:20px 0;text-align:center">加载中…</div>`;
+  try {
+    const data = await api('/reports');
+    countEl.textContent = `${data.items.length} 份`;
+    const currentId = window.__reportId || new URLSearchParams(location.search).get('id');
+    box.innerHTML = data.items.length
+      ? data.items.map(r => {
+        const cands = r.candidates || [];
+        const isActive = r.id === currentId;
+        const candTags = cands.slice(0, 3).map(c => `<span class="rl-cand-tag">${esc(c.school || c)}</span>`).join('');
+        const extra = cands.length > 3 ? `<span class="rl-cand-tag">+${cands.length - 3}</span>` : '';
+        return `
+        <div class="rl-card${isActive ? ' active' : ''}" onclick="switchReport('${r.id}')">
+          <div class="rl-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <div class="rl-body">
+            <div class="rl-title">${esc(r.title)}</div>
+            <div class="rl-meta">
+              <span class="rl-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                ${fmtTime(r.created_at)}
+              </span>
+              <span class="rl-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>
+                ${cands.length} 所候选
+              </span>
+            </div>
+            ${candTags ? `<div class="rl-cands">${candTags}${extra}</div>` : ''}
+          </div>
+          <button class="rl-del" onclick="event.stopPropagation(); deleteReport('${r.id}')" title="删除">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>`;
+      }).join('')
+      : `<div class="rl-empty">还没有报告<br>点下方按钮生成第一份分析报告</div>`;
+  } catch (e) { box.innerHTML = `<div style="font-size:12px;color:rgba(230,150,130,0.85);padding:20px;text-align:center">${esc(e.message)}</div>`; }
+}
+async function switchReport(id) {
+  closeList();
+  try {
+    await loadReport(id);
+    history.replaceState(null, '', 'report.html?id=' + id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) { toast(e.message, 'err'); }
+}
+function closeList() { document.getElementById('listOverlay').style.display = 'none'; }
+async function deleteReport(id) {
+  if (!confirm('删除这份报告？')) return;
+  try {
+    await api(`/reports/${id}`, { method: 'DELETE' });
+    openReportsList();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── 生成：候选行由用户动态增删 ──
+function genRowHtml(school = '', major = '') {
+  return `<div class="gen-row">
+    <input class="gy-input g-school" placeholder="院校名（支持别名，如 清华）" value="${esc(school)}">
+    <input class="gy-input g-major" placeholder="专业名（如 计算机）" value="${esc(major)}">
+    <button class="gen-del" onclick="delGenRow(this)" title="删除该候选">✕</button>
+  </div>`;
+}
+function addGenRow(school = '', major = '') {
+  document.getElementById('genRows').insertAdjacentHTML('beforeend', genRowHtml(school, major));
+  syncGenRows();
+}
+function delGenRow(btn) {
+  const rows = document.getElementById('genRows');
+  if (rows.children.length <= 1) return;  // 至少保留一行
+  btn.closest('.gen-row').remove();
+  syncGenRows();
+}
+function syncGenRows() {
+  const dels = document.querySelectorAll('#genRows .gen-del');
+  dels.forEach(b => { b.disabled = dels.length <= 1; });
+}
+function openGenOverlay(prefill) {
+  // 预填来源优先级：显式传入（当前报告候选）> 决策卡片候选 > 一行空
+  let rows = prefill;
+  if (!rows) {
+    try { rows = JSON.parse(localStorage.getItem('gy_pairs')) || []; } catch (e) { rows = []; }
+  }
+  const box = document.getElementById('genRows');
+  box.innerHTML = '';
+  (rows.length ? rows.slice(0, 6) : [{ school: '', major: '' }]).forEach(p => {
+    box.insertAdjacentHTML('beforeend', genRowHtml(p.school || '', p.major || ''));
+  });
+  syncGenRows();
+  document.getElementById('genOverlay').style.display = 'flex';
+  document.getElementById('genTip').textContent = '';
+  document.getElementById('genBtn').disabled = false;
+}
+function closeGenOverlay() { document.getElementById('genOverlay').style.display = 'none'; }
+
+// 查看报告时的「重新生成」：预填当前报告的候选院校，方便微调后重写
+function regenCurrent() {
+  let cands = [];
+  try {
+    cands = ((window.__currentReport?.content?.candidates) || [])
+      .map(c => ({ school: c.input?.school || c.heat?.school, major: c.input?.major || c.heat?.major }))
+      .filter(c => c.school);
+  } catch (e) { /* ignore */ }
+  openGenOverlay(cands.length ? cands : undefined);
+}
+
+async function genReport() {
+  const candidates = [...document.querySelectorAll('#genRows .gen-row')].map(row => ({
+    school: row.querySelector('.g-school').value.trim(),
+    major: row.querySelector('.g-major').value.trim(),
+  })).filter(c => c.school);
+  if (!candidates.length) { toast('请至少填写一所院校', 'err'); return; }
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  document.getElementById('genTip').textContent = `正在聚合数据并撰写报告（${candidates.length} 所候选）…`;
+  try {
+    const r = await api('/reports/generate', { method: 'POST', body: { candidates } });
+    location.href = `report.html?id=${r.id}`;
+  } catch (e) {
+    document.getElementById('genTip').textContent = `生成失败：${e.message}`;
+    btn.disabled = false;
+  }
+}
+
+// 浮层关闭交互：点击背景 / ESC
+const cameFromGen = new URLSearchParams(location.search).get('gen') === '1';
+document.addEventListener('click', e => {
+  if (e.target.id === 'genOverlay') {
+    if (cameFromGen && document.referrer) { history.back(); }
+    else { closeGenOverlay(); }
+  }
+  if (e.target.id === 'listOverlay') closeList();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (cameFromGen && document.referrer) { history.back(); }
+    else { closeGenOverlay(); closeList(); }
+  }
+});
+
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+  if (id) {
+    try { await loadReport(id); return; }
+    catch (e) { toast(e.message, 'err'); }
+  }
+  // gen=1：从决策卡片跳来，直接弹生成浮层（预填 localStorage 候选）
+  if (params.get('gen') === '1') {
+    openGenOverlay();
+    return;
+  }
+  // 无 id：优先自动进入最近一份报告；真没有才弹生成浮层
+  try {
+    const data = await api('/reports');
+    if (data.items.length) {
+      location.replace('report.html?id=' + data.items[0].id);
+      return;
+    }
+  } catch (e) { /* ignore */ }
+  openGenOverlay();
+  const root = document.getElementById('reportRoot');
+  root.querySelector('.cover-meta').textContent = '还没有报告——在上方设置候选院校生成第一份';
+})();
+</script>
+</body>
+</html>

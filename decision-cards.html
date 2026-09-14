@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<title>决策卡片 | 研屿</title>
+<script src="mock-api.js"></script>
+<script src="assets/vendor/echarts.min.js"></script>
+<link rel="stylesheet" href="assets/app.css?v=10">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: rgba(var(--brand-rgb), 0.88); min-height: 100vh; }
+  .icon-svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-svg-sm { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .header {
+    margin-left: 56px;
+    background: rgba(var(--line-rgb), 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(var(--line-rgb), 0.10);
+    padding: 16px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 {
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    font-size: 18px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .header-actions { display: flex; gap: 8px; }
+  .btn {
+    padding: 8px 16px; border-radius: 0.75rem; font-size: 13px;
+    cursor: pointer; border: 1px solid rgba(var(--line-rgb), 0.10);
+    background: rgba(var(--line-rgb), 0.06); color: rgba(var(--brand-rgb), 0.6);
+    transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: rgba(var(--brand-rgb), 0.10); color: rgba(var(--brand-rgb), 0.95); border-color: rgba(var(--brand-rgb), 0.20); }
+  .btn-primary {
+    background: linear-gradient(135deg, rgba(var(--brand-rgb), 0.18), rgba(var(--brand-rgb), 0.10));
+    border: 1px solid rgba(var(--brand-rgb), 0.25);
+    color: rgba(var(--brand-rgb), 0.95);
+  }
+
+  .container { max-width: 1200px; padding: 24px 32px 60px; margin-right: auto; margin-left: max(84px, calc((100% - 1200px) / 2 + 28px)); }
+
+  .page-title {
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    font-size: 20px; font-weight: 700; color: rgba(var(--brand-rgb), 0.95);
+    margin-bottom: 8px;
+  }
+  .page-desc { font-size: 14px; color: rgba(var(--brand-rgb), 0.45); margin-bottom: 24px; }
+  .page-desc a { color: rgba(var(--brand-rgb),0.6); }
+
+  /* 添加候选 */
+  .add-bar {
+    background: rgba(var(--line-rgb), 0.05);
+    border: 1px solid rgba(var(--line-rgb), 0.10);
+    border-radius: 1rem; padding: 14px 18px; margin-bottom: 20px;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .add-bar .gy-input { width: 190px; padding: 8px 12px; font-size: 13px; }
+  .add-bar-label { font-size: 12px; color: rgba(var(--brand-rgb), 0.4); }
+
+  /* Profile Bar */
+  .profile-bar {
+    background: rgba(var(--line-rgb), 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(var(--line-rgb), 0.10);
+    border-radius: 1rem;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .profile-bar-label {
+    font-size: 13px; color: rgba(var(--brand-rgb), 0.5); white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .profile-bar-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .p-tag {
+    background: rgba(var(--brand-rgb), 0.08);
+    color: rgba(var(--brand-rgb), 0.75); font-size: 12px;
+    padding: 4px 10px; border-radius: 0.75rem;
+    border: 1px solid rgba(var(--brand-rgb), 0.08);
+  }
+  .p-tag.highlight {
+    background: rgba(217, 119, 6, 0.14);
+    color: rgba(194, 65, 12, 0.95);
+    border-color: rgba(217, 119, 6, 0.25);
+  }
+
+  /* Card Grid */
+  .card-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  .card-grid.two { grid-template-columns: 1fr 1fr; }
+  .card-grid.two .dcard { padding: 16px; min-width: 0; overflow: hidden; }
+  .card-grid.two .dcard-name { font-size: 15px; }
+  .card-grid.two .dcard-sub { font-size: 11px; }
+  .card-grid.two .metrics { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card-grid.two .metric-value { font-size: 12px; }
+  .card-grid.two .metric-note { font-size: 9px; }
+  .card-grid.two .dcard-chart { height: 100px; }
+  .card-grid.two .finding { padding: 8px 12px; font-size: 12px; }
+  .card-grid.two .dcard-advice-text { font-size: 12px; }
+  .card-grid.two .dcard-risk { font-size: 11px; max-width: 200px; }
+  .card-grid.two .dcard-stars { font-size: 14px; }
+  .card-grid.two .dcard-rating-text { font-size: 10px; }
+  .card-grid.two .dcard-head { margin-bottom: 12px; }
+  .card-grid.two .dcard-recommend-banner { padding: 4px 12px; font-size: 11px; margin: -16px -16px 12px -16px; }
+  @media (max-width: 1180px) { .card-grid.two { grid-template-columns: 1fr; } }
+
+  /* Decision Card */
+  .dcard {
+    background: rgba(var(--line-rgb), 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(var(--line-rgb), 0.10);
+    border-radius: 1.35rem;
+    padding: 24px;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative;
+  }
+  .dcard:hover { border-color: rgba(var(--brand-rgb), 0.20); transform: translateY(-2px); }
+  .dcard[draggable="true"] { cursor: grab; }
+  .dcard[draggable="true"]:active { cursor: grabbing; }
+  .dcard.dragging { opacity: 0.4; border-style: dashed; border-color: rgba(var(--brand-rgb),0.35); }
+  .dcard.drop-target { border-color: rgba(var(--brand-rgb),0.45); }
+  .dcard.recommended { border-color: rgba(74, 222, 128, 0.25); }
+  .dcard-recommend-banner {
+    background: rgba(74, 222, 128, 0.08);
+    border: 1px solid rgba(74, 222, 128, 0.15);
+    padding: 6px 16px;
+    font-size: 12px; font-weight: 600;
+    color: rgba(74, 222, 128, 0.9);
+    margin: -24px -24px 16px -24px;
+    border-radius: 1.35rem 1.35rem 0 0;
+  }
+
+  .dcard-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+  .dcard-name {
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    font-size: 18px; font-weight: 700; color: rgba(var(--brand-rgb), 0.95); margin-bottom: 4px;
+  }
+  .dcard-sub { font-size: 13px; color: rgba(var(--brand-rgb), 0.45); }
+  .dcard-rating { text-align: right; padding-top: 24px; }
+  .dcard-stars { font-size: 18px; letter-spacing: 2px; }
+  .star-full { color: rgba(251, 191, 36, 0.9); }
+  .star-empty { color: rgba(var(--brand-rgb), 0.15); }
+  .dcard-rating-text { font-size: 11px; color: rgba(var(--brand-rgb), 0.45); margin-top: 2px; }
+
+  /* Metrics Grid */
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+  .metric-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .metric-label { font-size: 12px; color: rgba(var(--brand-rgb), 0.45); }
+  .metric-value { font-size: 14px; font-weight: 600; }
+  .metric-bar { height: 8px; background: rgba(var(--line-rgb), 0.06); border-radius: 0.75rem; overflow: hidden; }
+  .metric-fill { height: 100%; border-radius: 0.75rem; transition: width 0.6s ease; }
+  .metric-note { font-size: 11px; color: rgba(var(--brand-rgb), 0.30); margin-top: 4px; }
+
+  .cred { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 0.75rem; font-weight: 700; margin-left: 3px; vertical-align: middle; }
+  .cred-t1 { background: rgba(74, 222, 128, 0.12); color: rgba(74, 222, 128, 0.9); }
+  .cred-t2 { background: rgba(234, 179, 8, 0.12); color: rgba(250, 204, 21, 0.9); }
+  .cred-t3 { background: rgba(var(--brand-rgb), 0.08); color: rgba(var(--brand-rgb), 0.5); }
+
+  .finding {
+    background: rgba(234, 179, 8, 0.05);
+    border: 1px solid rgba(234, 179, 8, 0.12);
+    border-radius: 1rem;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: rgba(var(--brand-rgb), 0.75);
+    line-height: 1.6;
+  }
+  .finding-label {
+    font-size: 12px; font-weight: 600; color: rgba(251, 191, 36, 0.9); margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .dcard-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid rgba(var(--line-rgb), 0.06); gap: 12px; flex-wrap: wrap; }
+  .dcard-advice-label { font-size: 11px; color: rgba(var(--brand-rgb), 0.45); margin-bottom: 2px; }
+  .dcard-advice-text { font-size: 14px; color: rgba(var(--brand-rgb), 0.85); font-weight: 500; }
+  .dcard-risk { font-size: 12px; color: rgba(239, 68, 68, 0.85); text-align: right; max-width: 340px; display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+  .mini-x {
+    background: rgba(var(--line-rgb),0.05); border: 1px solid rgba(var(--line-rgb),0.10);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px;
+    color: rgba(var(--brand-rgb),0.4); cursor: pointer;
+  }
+  .mini-x:hover { color: rgba(var(--brand-rgb),0.8); }
+  /* 卡片右上角：目标按钮 / 已设为目标徽标 */
+  .target-pin {
+    position: absolute; top: 14px; right: 16px; z-index: 2;
+    background: rgba(var(--panel-rgb, 255,255,255), 0.65);
+    border: 1px solid rgba(var(--accent, 109,179,163), 0.35);
+    border-radius: 999px; padding: 3px 10px; font-size: 11px;
+    color: var(--accent, #6db3a3); cursor: pointer; transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .target-pin:hover { background: rgba(var(--accent, 109,179,163), 0.16); border-color: rgba(var(--accent, 109,179,163), 0.6); }
+  .target-pin.is-target {
+    background: rgba(var(--accent, 109,179,163), 0.14);
+    border-color: rgba(var(--accent, 109,179,163), 0.5);
+    color: var(--accent, #6db3a3); font-weight: 600; cursor: default;
+  }
+  .target-pin svg { width: 12px; height: 12px; }
+
+  .dcard-chart { width: 100%; height: 140px; margin-bottom: 16px; }
+
+  /* Comparison Table */
+  .compare-section { margin-top: 32px; }
+  .compare-title {
+    font-family: ui-serif, Georgia, "Noto Serif SC", serif;
+    font-size: 16px; font-weight: 600; color: rgba(var(--brand-rgb), 0.95); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .compare-table {
+    width: 100%;
+    /* collapse 模式下 border-radius 与 overflow 裁剪失效 → 用 separate */
+    border-collapse: separate;
+    border-spacing: 0;
+    background: rgba(var(--line-rgb), 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 1px solid rgba(var(--line-rgb), 0.10);
+  }
+  .compare-table th {
+    background: rgba(var(--brand-rgb), 0.06);
+    padding: 12px 16px;
+    font-size: 12px; font-weight: 600;
+    color: rgba(var(--brand-rgb), 0.7);
+    text-align: left;
+    border-bottom: 1px solid rgba(var(--line-rgb), 0.06);
+  }
+  .compare-table td {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: rgba(var(--brand-rgb), 0.75);
+    border-bottom: 1px solid rgba(var(--line-rgb), 0.04);
+  }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:hover td { background: rgba(var(--brand-rgb), 0.04); }
+  .best-val { color: rgba(74, 222, 128, 0.9); font-weight: 600; }
+  .loading-tip { padding: 60px 0; text-align: center; color: rgba(var(--brand-rgb),0.35); font-size: 13px; grid-column: 1/-1; }
+
+  @media (max-width: 900px) {
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .container { padding: 16px 14px calc(76px + env(safe-area-inset-bottom, 0px)); margin-left: 0 !important; margin-right: 0 !important; }
+    .header { margin-left: 0; position: sticky; top: 0; backdrop-filter: blur(16px); z-index: 30; }
+    .header-actions { gap: 5px; }
+    .header-actions .gy-btn { padding: 6px 10px; font-size: 11.5px; }
+    .compare-section .compare-table { display: block; overflow-x: auto; white-space: nowrap; border-radius: 1rem; }
+    /* 手机单列是唯一形态：隐藏双栏切换，强制单列 */
+    #viewToggle { display: none !important; }
+    .card-grid, .card-grid.two { grid-template-columns: 1fr !important; }
+    /* 添加候选栏：不再随桌面 flex 行换行成碎块，改为明确网格（标签 / 输入通栏 / 按钮并排） */
+    .add-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; align-items: stretch; }
+    .add-bar-label { grid-column: 1 / -1; align-self: center; }
+    .add-bar .gy-input { width: 100%; grid-column: 1 / -1; }
+    .add-bar .btn { padding: 9px 0; justify-content: center; text-align: center; }
+    .add-bar .btn-primary { grid-column: 1; }
+    .add-bar .btn:not(.btn-primary) { grid-column: 2; }
+    .add-bar > span[style] { display: none; } /* 弹性占位在网格里无意义 */
+  }
+
+/* ── DEMO MODE Badge ── */
+.demo-badge {
+  position: fixed; bottom: 16px; right: 16px; z-index: 99999;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1a1a1a; background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+  pointer-events: none; user-select: none;
+  animation: demoBadgePulse 3s ease-in-out infinite;
+}
+@keyframes demoBadgePulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@media (max-width: 767px) {
+  .demo-badge { bottom: 72px; right: 10px; font-size: 10px; padding: 5px 10px; }
+}
+
+</style>
+</head>
+<body>
+<div class="demo-badge">DEMO MODE</div>
+<div data-nav="decision-cards"></div>
+
+<div data-header></div>
+
+<div class="container">
+  <div class="page-title">你的候选院校分析</div>
+  <div class="page-desc">基于舆情指标与官方数据实时生成，全部标注可信度。按住任意卡片拖动可调整顺序；在 <a href="agent-chat.html">Agent 对话</a>中可追问任何一张卡片。</div>
+
+  <!-- Profile Bar -->
+  <div class="profile-bar" id="profileBar">
+    <div class="profile-bar-label">
+      <svg class="icon-svg-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      你的画像：
+    </div>
+    <div class="profile-bar-tags" id="profileTags"><span class="p-tag">加载中…</span></div>
+  </div>
+
+  <div class="add-bar">
+    <span class="add-bar-label">添加候选：</span>
+    <input class="gy-input" id="schoolInput" placeholder="院校名（支持别名，如 清华）">
+    <input class="gy-input" id="majorInput" placeholder="专业名（如 计算机）">
+    <button class="btn btn-primary" onclick="addPair()">添加并分析</button>
+    <span style="flex:1"></span>
+    <button class="btn" onclick="renderAll()">刷新指标</button>
+  </div>
+
+  <div class="card-grid" id="cardGrid">
+    <div class="loading-tip">正在加载候选院校…</div>
+  </div>
+
+  <div class="compare-section" id="compareSection" style="display:none">
+    <div class="compare-title">
+      <svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      候选院校横向对比
+    </div>
+    <table class="compare-table" id="compareTable"></table>
+  </div>
+</div>
+
+<script src="assets/app.js?v=18"></script>
+<script>
+document.querySelector('[data-nav]').outerHTML = navSidebar('decision-cards');
+mountHeader('研屿 · 择校决策卡片',
+  `<button class="ph-btn" id="viewToggle" onclick="toggleView()">双栏视图</button>
+   <a class="ph-btn" href="dashboard.html">数据大盘</a>
+   <a class="ph-btn" href="agent-chat.html">Agent 对话</a>
+   <button class="ph-btn primary" onclick="genReportFromCards()">生成完整报告</button>`);
+
+const STORE_KEY = 'gy_pairs';
+const EVAL_NUM = { 'A+': 100, 'A': 95, 'A-': 90, 'B+': 85, 'B': 80, 'B-': 75, 'C+': 70, 'C': 65 };
+function loadPairs() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch (e) { return []; } }
+function savePairs(p) { localStorage.setItem(STORE_KEY, JSON.stringify(p)); }
+function stars(n) {
+  return `<span class="star-full">${'★'.repeat(n)}</span><span class="star-empty">${'★'.repeat(Math.max(0, 5 - n))}</span>`;
+}
+
+// 画像标签
+(async () => {
+  try {
+    const p = await api('/profile/me');
+    const tags = [];
+    const bg = p.background || {};
+    if (bg.school_tier || bg.major) tags.push(`${bg.school_tier || ''}${bg.major ? ' · ' + bg.major : ''}`);
+    if (bg.gpa_rank) tags.push(bg.gpa_rank);
+    if (bg.is_cross_discipline) tags.push('跨考');
+    if (p.risk_preference) tags.push(p.risk_preference);
+    (p.hard_constraints || []).forEach(x => tags.push(x));
+    (p.priorities || []).slice(0, 3).forEach(x => tags.push(x));
+    if (p.anxiety_points) tags.push(p.anxiety_points.slice(0, 14));
+    document.getElementById('profileTags').innerHTML = tags.length
+      ? tags.map((t, i) => `<span class="p-tag ${/稳|约束|焦虑|担心/.test(t) ? 'highlight' : ''}">${esc(t)}</span>`).join('')
+      : '<span class="p-tag">画像未填写，去 Agent 对话完成引导</span>';
+  } catch (e) { /* ignore */ }
+})();
+
+async function fetchOverview(pair) {
+  const q = `school=${encodeURIComponent(pair.school)}${pair.major ? '&major=' + encodeURIComponent(pair.major) : ''}`;
+  const o = await api(`/metrics/overview?${q}`);
+  o._schoolInfo = null;
+  o._majorDisplay = pair.major || '';
+  try {
+    const s = await publicApi(`/search?q=${encodeURIComponent(pair.school)}`);
+    const hit = (s.schools || []).find(x => x.name === pair.school || x.name.includes(pair.school) || pair.school.includes(x.name));
+    if (hit) { o._schoolInfo = hit; }
+  } catch (e) { /* ignore */ }
+  try {
+    o._majorDisplay = (await majorName(pair.major || o.heat?.major || '')) || o.heat?.major || '';
+  } catch (e) { /* ignore */ }
+  let emp = null;
+  try {
+    const e = await api(`/employment-sentiment?major=${encodeURIComponent(pair.major || o.major || '计算机')}`);
+    const arr = e.series && Object.values(e.series)[0];
+    if (arr && arr.length) emp = arr[arr.length - 1].sentiment_score;
+  } catch (err) { /* ignore */ }
+  return { pair, o, emp };
+}
+
+function compositeScore(o, emp) {
+  const h = o.heat || {};
+  const d = o.discouragement?.discouragement_index ?? 0.3;
+  const g = o.info_gap?.info_gap ?? 0;
+  const ex = o.initial_vs_reexam || {};
+  const total = (ex.initial_discussion || 0) + (ex.reexam_discussion || 0);
+  const reRatio = total > 0 ? ex.reexam_discussion / total : 0.4;
+  const evalV = EVAL_NUM[o.info_gap?.discipline_evaluation] ?? 65;
+  const fairness = Math.round(100 - reRatio * 100);
+  const friendly = Math.round(100 - d * 100);
+  const empV = emp !== null ? Math.round((emp + 1) * 50) : 70;
+  const composite = Math.round(
+    evalV * 0.25 + fairness * 0.20 + friendly * 0.15
+    + Math.max(0, 100 - (h.mhi ?? 60)) * 0.15 + ((g + 1) * 50) * 0.15 + empV * 0.10);
+  return { composite, starsN: Math.max(2, Math.min(5, Math.round(composite / 20))), fairness, friendly };
+}
+
+function renderCard(item, idx, isTarget) {
+  const { pair, o, emp } = item;
+  const h = o.heat || {};
+  if (h.error || h.mhi === undefined || h.mhi === null) {
+    return `<div class="dcard" ${isTarget ? 'data-target="1"' : 'draggable="true"'} data-key="${esc(pair.school)}|${esc(pair.major || '')}">
+      ${targetPinHtml(idx, isTarget)}
+      <div class="dcard-head">
+        <div><div class="dcard-name">${esc(pair.school)}${pair.major ? ' · ' + esc(pair.major) : ''}</div>
+        <div class="dcard-sub">数据不足，无法生成决策卡片</div></div>
+      </div>
+      <div style="font-size:12px;color:rgba(230,150,130,0.85)">${esc(h.detail || '该院校×专业暂无指标快照，尝试调整专业名或先在 Agent 对话中查询。')}</div>
+      <div class="dcard-footer"><span></span><div style="display:flex;gap:6px;align-items:center">${isTarget ? '' : `<button class="mini-x" onclick="removePair(${idx})">移除</button>`}</div></div>
+    </div>`;
+  }
+  const score = compositeScore(o, emp);
+  const growth = h.mom_growth ?? 0;
+  const d = o.discouragement?.discouragement_index ?? 0;
+  const b = o.baoyan_pressure?.baoyan_pressure ?? 0;
+  const g = o.info_gap?.info_gap ?? 0;
+  const ex = o.initial_vs_reexam || {};
+  const total = (ex.initial_discussion || 0) + (ex.reexam_discussion || 0);
+  const reRatio = total > 0 ? ex.reexam_discussion / total : 0.4;
+  const fairV = Math.round(100 - reRatio * 100);
+  const colorGreen = 'rgba(74,222,128,0.8)';
+  const colorYellow = 'rgba(251,191,36,0.8)';
+  const colorRed = 'rgba(239,68,68,0.8)';
+  const trendCn = { rising: '上升', falling: '回落', stable: '平稳' }[(o.trend_prediction || {}).direction] || '—';
+  const posts = (o.recent_posts?.posts || []);
+  const risks = [];
+  if (d >= 0.3) risks.push('劝退舆情集中');
+  if (b >= 0.4) risks.push('保研挤压明显');
+  if (growth > 0.5) risks.push('讨论量暴涨');
+  if (h.self_fulfilling_signal === 'cooling_off') risks.push('舆论自我降温中');
+  if (h.self_fulfilling_signal === 'warming_hype') risks.push('涌入效应风险');
+  const advice = g > 0.1
+    ? '存在信息差空间 · 可重点关注招简与推免占比'
+    : g < -0.1 ? '热度高于实力 · 警惕泡沫'
+    : trendCn === '上升' ? '热度上升期 · 尽早锁定策略' : '指标均衡 · 按部就班';
+
+  const enr = o.enrollment?.series || [];
+  const byYear = Object.fromEntries(enr.map(e => [e.year, e]));
+  const years = [2022, 2023, 2024, 2025, 2026];
+  const unified = years.map(y => {
+    const e = byYear[y];
+    return (e && e.planned != null) ? (e.planned - (e.exemption || 0)) : null;
+  });
+  const unifiedVals = unified.filter(v => v !== null);
+  const unifiedTxt = unifiedVals.length ? `${unifiedVals[0]}→${unifiedVals[unifiedVals.length - 1]} 人` : '—';
+
+  const chartId = `dchart-${idx}`;
+  return `<div class="dcard ${score.starsN >= 4 ? 'recommended' : ''}" ${isTarget ? 'data-target="1"' : 'draggable="true"'} data-key="${esc(pair.school)}|${esc(pair.major || '')}">
+    ${targetPinHtml(idx, isTarget)}
+    ${score.starsN >= 4 ? '<div class="dcard-recommend-banner">综合匹配度靠前 · 值得优先研究</div>' : ''}
+    <div class="dcard-head">
+      <div class="dcard-school">
+        <div class="dcard-name">${esc(h.school || pair.school)} · ${esc(o._majorDisplay || h.major || '')}</div>
+        <div class="dcard-sub">${esc(o._schoolInfo?.tier || '')}${o._schoolInfo ? ' / ' + esc(o._schoolInfo.province || '') + (o._schoolInfo.city ? ' · ' + esc(o._schoolInfo.city) : '') : ''} / ${esc(o.info_gap?.discipline_evaluation || '评估未知')} 学科 · 样本 ${fmtNum(h.sample_post_count)} 条</div>
+      </div>
+      <div class="dcard-rating">
+        <div class="dcard-stars">${stars(score.starsN)}</div>
+        <div class="dcard-rating-text">推荐度 ${score.starsN}/5 · 综合 ${score.composite}</div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-head"><span class="metric-label">热度 <span class="cred cred-t3">T3</span></span>
+          <span class="metric-value" style="color:${h.mhi >= 80 ? 'rgba(239,68,68,0.9)' : h.mhi >= 60 ? 'rgba(251,191,36,0.9)' : 'rgba(74,222,128,0.9)'};">${h.mhi}</span></div>
+        <div class="metric-bar"><div class="metric-fill" style="width:${h.mhi}%;background:linear-gradient(90deg,${h.mhi >= 60 ? 'rgba(251,191,36,0.8)' : 'rgba(74,222,128,0.8)'},rgba(239,68,68,0.8))"></div></div>
+        <div class="metric-note">${signed(growth)} vs 上月 · 趋势${trendCn}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-head"><span class="metric-label">劝退指数 <span class="cred cred-t3">T3</span></span>
+          <span class="metric-value" style="color:${d >= 0.3 ? 'rgba(239,68,68,0.9)' : d >= 0.15 ? 'rgba(251,191,36,0.9)' : 'rgba(74,222,128,0.9)'};">${d.toFixed(2)}</span></div>
+        <div class="metric-bar"><div class="metric-fill" style="width:${(d * 100).toFixed(0)}%;background:${d >= 0.3 ? colorRed : d >= 0.15 ? colorYellow : colorGreen}"></div></div>
+        <div class="metric-note">${d >= 0.3 ? '偏高 · 可能吓退竞争者' : d >= 0.15 ? '中等' : '较低 · 舆论环境友好'}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-head"><span class="metric-label">保研挤压 <span class="cred cred-t3">T3</span></span>
+          <span class="metric-value" style="color:${b >= 0.4 ? 'rgba(239,68,68,0.9)' : b >= 0.25 ? 'rgba(251,191,36,0.9)' : 'rgba(74,222,128,0.9)'};">${b.toFixed(2)}</span></div>
+        <div class="metric-bar"><div class="metric-fill" style="width:${(b * 100).toFixed(0)}%;background:linear-gradient(90deg,${b >= 0.4 ? 'rgba(251,191,36,0.8)' : 'rgba(74,222,128,0.8)'},rgba(239,68,68,0.8))"></div></div>
+        <div class="metric-note">保研讨论占比 · 9 月推免季最关键</div>
+      </div>
+      <div class="metric">
+        <div class="metric-head"><span class="metric-label">信息差 <span class="cred cred-t3">T3</span></span>
+          <span class="metric-value" style="color:${g > 0.1 ? 'rgba(74,222,128,0.9)' : g < -0.1 ? 'rgba(239,68,68,0.9)' : 'rgba(244,231,211,0.5)'};">${g >= 0 ? '+' : ''}${g.toFixed(2)}</span></div>
+        <div class="metric-bar"><div class="metric-fill" style="width:${((g + 1) * 50).toFixed(0)}%;background:${g > 0.1 ? colorGreen : g < -0.1 ? colorRed : 'rgba(244,231,211,0.3)'}"></div></div>
+        <div class="metric-note">${g > 0.1 ? '被低估 · 捡漏机会' : g < -0.1 ? '被高估 · 警惕泡沫' : '热度与实力匹配'}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-head"><span class="metric-label">复试讨论结构 <span class="cred cred-t3">T3</span></span>
+          <span class="metric-value" style="color:${fairV >= 70 ? 'rgba(74,222,128,0.9)' : fairV >= 50 ? 'rgba(251,191,36,0.9)' : 'rgba(239,68,68,0.9)'};">${fairV >= 70 ? '较好' : fairV >= 50 ? '中等' : '需留意'}</span></div>
+        <div class="metric-bar"><div class="metric-fill" style="width:${fairV}%;background:${fairV >= 70 ? colorGreen : fairV >= 50 ? colorYellow : colorRed}"></div></div>
+        <div class="metric-note">复试/初试讨论比 ${(reRatio * 100).toFixed(0)}% · 比例高需留意复试淘汰</div>
+      </div>
+      <div class="metric">
+        <div class="metric-head"><span class="metric-label">就业舆情 <span class="cred cred-t3">T3</span></span>
+          <span class="metric-value" style="color:${emp !== null && emp > 0.2 ? 'rgba(74,222,128,0.9)' : emp !== null && emp < -0.1 ? 'rgba(239,68,68,0.9)' : 'rgba(251,191,36,0.9)'};">${emp !== null ? (emp > 0.2 ? '向好' : emp < -0.1 ? '走弱' : '平稳') : '—'}</span></div>
+        <div class="metric-bar"><div class="metric-fill" style="width:${emp !== null ? ((emp + 1) * 50).toFixed(0) : 50}%;background:${emp !== null && emp > 0.2 ? colorGreen : emp !== null && emp < -0.1 ? colorRed : colorYellow}"></div></div>
+        <div class="metric-note">就业讨论先行指标 · 影响未来热度</div>
+      </div>
+    </div>
+    <div id="${chartId}" class="dcard-chart"></div>
+    <div class="finding">
+      <div class="finding-label">
+        <svg class="icon-svg-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        Agent 发现
+      </div>
+      ${posts.length ? `一线声音：「${esc(posts[0].snippet.slice(0, 52))}…」（${esc(posts[0].platform)}）。` : '样本帖不足，以上指标置信度有限。'}
+      ${h.self_fulfilling_signal === 'cooling_off' ? '高劝退叠加热度回落，可能存在「舆论自我降温」——部分负面讨论正在吓退竞争者。' : ''}
+      ${h.self_fulfilling_signal === 'warming_hype' ? '低劝退叠加热度上涨，可能存在「自我实现升温」——涌入效应或使实际竞争高于当前预期。' : ''}
+      近5年统考名额 ${unifiedTxt} <span class="cred cred-t1">T1</span>。
+    </div>
+    <div class="dcard-footer">
+      <div class="dcard-advice">
+        <div class="dcard-advice-label">Agent 建议</div>
+        <div class="dcard-advice-text">${advice}</div>
+      </div>
+      <div class="dcard-risk">
+        <svg class="icon-svg-sm" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        ${risks.length ? `风险：${risks.join(' + ')}` : '暂无突出风险信号（仍需关注招简变动）'}
+      </div>
+      ${isTarget ? '<span style="font-size:11px;color:rgba(var(--brand-rgb),0.4)">个人主页目标 · 常驻展示</span>' : `<button class="mini-x" onclick="removePair(${idx})">移除</button>`}
+    </div>
+  </div>`;
+}
+
+function drawMiniChart(idx, o) {
+  if (!window.echarts) return;
+  const el = document.getElementById(`dchart-${idx}`);
+  if (!el) return;
+  const brand = () => (getComputedStyle(document.documentElement).getPropertyValue('--brand-rgb') || '244, 231, 211').trim();
+  const years = ['2022', '2023', '2024', '2025', '2026'];
+  const enr = o.enrollment?.series || [];
+  const byYear = Object.fromEntries(enr.map(e => [e.year, e]));
+  const unified = years.map(y => {
+    const e = byYear[+y];
+    return e && e.planned != null ? (e.planned - (e.exemption || 0)) : null;
+  });
+  const lines = o.score_lines?.series || [];
+  const byY = Object.fromEntries(lines.map(s => [s.year, s.total]));
+  const scores = years.map(y => byY[+y] ?? null);
+  const chart = echarts.init(el);
+  chart.setOption({
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(5,5,4,0.95)', borderColor: `rgba(${brand()},0.15)`, textStyle: { color: `rgba(${brand()},0.88)`, fontSize: 11 } },
+    legend: { data: ['统考名额', '分数线'], textStyle: { color: `rgba(${brand()},0.6)`, fontSize: 11 }, top: 0 },
+    grid: { left: 40, right: 40, top: 26, bottom: 20 },
+    xAxis: {
+      type: 'category', data: years,
+      axisLine: { lineStyle: { color: `rgba(${brand()},0.10)` } },
+      axisLabel: { color: `rgba(${brand()},0.6)`, fontSize: 11 },
+    },
+    yAxis: [
+      { type: 'value', splitLine: { lineStyle: { color: `rgba(${brand()},0.05)` } }, axisLabel: { color: `rgba(${brand()},0.55)`, fontSize: 10 } },
+      { type: 'value', scale: true, splitLine: { show: false }, axisLabel: { color: `rgba(${brand()},0.55)`, fontSize: 10 } },
+    ],
+    series: [
+      { name: '统考名额', type: 'bar', yAxisIndex: 0, data: unified, barWidth: 18,
+        itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: `rgba(${brand()},0.35)` }, { offset: 1, color: `rgba(${brand()},0.12)` }]), borderRadius: [3, 3, 0, 0] } },
+      { name: '分数线', type: 'line', yAxisIndex: 1, data: scores, smooth: true,
+        lineStyle: { color: 'rgba(251,191,36,0.8)', width: 2 }, itemStyle: { color: 'rgba(251,191,36,0.9)' },
+        symbol: 'circle', symbolSize: 5 },
+    ],
+  });
+  window.addEventListener('resize', () => chart.resize());
+}
+
+// ── 长按拖动换序：拖动中 DOM 实时预览，松手按新顺序写回并刷新 ──
+let dragEl = null;
+function setupDragSort() {
+  const grid = document.getElementById('cardGrid');
+  grid.addEventListener('dragstart', e => {
+    const card = e.target.closest('.dcard');
+    if (!card) return;
+    if (card.dataset.target === '1') { e.preventDefault(); return; } // 目标卡固定第一，不可拖
+    dragEl = card;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', card.dataset.key || ''); } catch (err) {}
+  });
+  grid.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!dragEl) return;
+    const others = [...grid.querySelectorAll('.dcard:not(.dragging)')];
+    const over = others.find(c => c === e.target || c.contains(e.target));
+    if (!over || over.dataset.target === '1') return; // 目标卡不作为放置点
+    grid.querySelectorAll('.drop-target').forEach(c => c.classList.remove('drop-target'));
+    const rect = over.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height / 2;
+    grid.insertBefore(dragEl, before ? over : over.nextSibling);
+    over.classList.add('drop-target');
+  });
+  grid.addEventListener('drop', e => e.preventDefault());
+  grid.addEventListener('dragend', () => {
+    if (!dragEl) return;
+    dragEl.classList.remove('dragging');
+    dragEl = null;
+    grid.querySelectorAll('.drop-target').forEach(c => c.classList.remove('drop-target'));
+    // 按 DOM 顺序写回存储（目标虚拟卡不参与排序）
+    const keys = [...grid.querySelectorAll('.dcard:not([data-target="1"])')].map(c => c.dataset.key).filter(Boolean);
+    const pairs = loadPairs();
+    pairs.sort((a, b) => {
+      const ka = keys.indexOf(`${a.school}|${a.major || ''}`);
+      const kb = keys.indexOf(`${b.school}|${b.major || ''}`);
+      return (ka < 0 ? 999 : ka) - (kb < 0 ? 999 : kb);
+    });
+    savePairs(pairs);
+    renderAll();
+  });
+}
+
+async function renderAll() {
+  // 个人主页设置的目标院校/专业 → 合成为常驻第一张卡（不落盘，始终跟随个人主页）
+  let targetPair = null;
+  try {
+    const prep = await api('/profile/exam-prep', { silent: true });
+    const ts = (prep.target_school || '').trim();
+    if (ts) targetPair = { school: ts, major: (prep.target_major || '').trim() };
+  } catch (e) { /* ignore */ }
+  window.__targetPair = targetPair;
+  const samePair = (a, b) => !!a && !!b && a.school === b.school && (a.major || '') === (b.major || '');
+  const userPairs = loadPairs().filter(p => !samePair(p, targetPair));
+  const pairs = targetPair ? [targetPair, ...userPairs] : userPairs;
+  window.__viewPairs = pairs;
+  const isTargetIdx = i => !!targetPair && i === 0;
+  const grid = document.getElementById('cardGrid');
+  if (!pairs.length) {
+    grid.innerHTML = '<div class="loading-tip">还没有候选院校。<br>在上方输入院校与专业（如 清华 / 计算机），或先在 Agent 对话中生成分析。</div>';
+    document.getElementById('compareSection').style.display = 'none';
+    return;
+  }
+  grid.innerHTML = pairs.map((p, i) => `<div class="dcard" id="pair-slot-${i}"><div class="loading-tip">${esc(p.school)}${p.major ? ' · ' + esc(p.major) : ''} 分析中…</div></div>`).join('');
+  // 主题切换重绘复用上次结果；候选变了或上次有失败才重新拉取
+  const pairKey = JSON.stringify(pairs);
+  if (!window.__pairResults || window.__pairResultsKey !== pairKey || window.__pairResults.some(r => r.err)) {
+    const results = await Promise.all(pairs.map(p => fetchOverview(p).catch(e => ({ pair: p, err: e }))));
+    window.__pairResults = results; window.__pairResultsKey = pairKey;
+  }
+  const results = window.__pairResults;
+  const ok = results.filter(r => !r.err);
+  const html = results.map((r, i) => {
+    if (r.err) {
+      return `<div class="dcard" ${isTargetIdx(i) ? 'data-target="1"' : 'draggable="true"'} data-key="${esc(r.pair.school)}|${esc(r.pair.major || '')}">${targetPinHtml(i, isTargetIdx(i))}<div class="dcard-head"><div><div class="dcard-name">${esc(r.pair.school)}${r.pair.major ? ' · ' + esc(r.pair.major) : ''}</div>
+        <div class="dcard-sub">加载失败：${esc(r.err.message)}</div></div></div>
+        <div class="dcard-footer"><span></span><div style="display:flex;gap:6px;align-items:center">${isTargetIdx(i) ? '' : `<button class="mini-x" onclick="removePair(${i})">移除</button>`}</div></div></div>`;
+    }
+    return renderCard(r, i, isTargetIdx(i));
+  }).join('');
+  grid.innerHTML = html;
+  results.forEach((r, i) => { if (!r.err) drawMiniChart(i, r.o); });
+  renderCompare(ok);
+}
+// 卡片右上角：目标徽标（已设为）/ 设为目标按钮
+function targetPinHtml(idx, isTarget) {
+  const svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>';
+  return isTarget
+    ? `<div class="target-pin is-target" title="个人主页设置的目标院校">${svg}目标</div>`
+    : `<button class="target-pin" title="设为目标院校（同步到个人主页）" onclick="setTarget(${idx})">${svg}设为目标</button>`;
+}
+
+function renderCompare(overviews) {
+  const sec = document.getElementById('compareSection');
+  if (overviews.length < 2) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  const scored = overviews.map(it => ({ it, s: compositeScore(it.o, it.emp) }));
+  const head = `<tr><th>指标</th>${scored.map(x => `<th>${esc(x.it.o.heat?.school || x.it.pair.school)}</th>`).join('')}</tr>`;
+  const bestCls = (isBest) => isBest ? 'class="best-val"' : '';
+  const minIdx = (vals) => { let bi = -1, bv = Infinity; vals.forEach((v, i) => { if (v !== null && v < bv) { bv = v; bi = i; } }); return bi; };
+  const maxIdx = (vals) => { let bi = -1, bv = -Infinity; vals.forEach((v, i) => { if (v !== null && v > bv) { bv = v; bi = i; } }); return bi; };
+  const mh = scored.map(x => x.it.o.heat?.mhi ?? null);
+  const ds = scored.map(x => x.it.o.discouragement?.discouragement_index ?? null);
+  const bs = scored.map(x => x.it.o.baoyan_pressure?.baoyan_pressure ?? null);
+  const gs = scored.map(x => x.it.o.info_gap?.info_gap ?? null);
+  const st = scored.map(x => x.s.composite);
+  const lineRow = scored.map(x => {
+    const byY = Object.fromEntries((x.it.o.score_lines?.series || []).map(s => [s.year, s.total]));
+    const a = byY[2022], b = byY[2026];
+    return (a && b) ? `${a}→${b} (${((b - a) / a * 100) >= 0 ? '+' : ''}${((b - a) / a * 100).toFixed(1)}%)` : '—';
+  });
+  const quotaRow = scored.map(x => {
+    const e = (x.it.o.enrollment?.series || [])[0];
+    return e && e.planned != null ? `${e.planned - (e.exemption || 0)} 人` : '—';
+  });
+  const rows = [
+    ...[['热度指数 MHI <span class="cred cred-t3">T3</span>', mh, minIdx(mh)],
+        ['劝退指数 <span class="cred cred-t3">T3</span>', ds, minIdx(ds)],
+        ['保研挤压 <span class="cred cred-t3">T3</span>', bs, minIdx(bs)],
+        ['信息差 <span class="cred cred-t3">T3</span>', gs, maxIdx(gs)]]
+      .map(([label, vals, best]) => `<tr><td>${label}</td>${vals.map((v, i) => `<td ${bestCls(i === best)}>${v === null ? '—' : v}</td>`).join('')}</tr>`),
+    `<tr><td>近5年分数线 <span class="cred cred-t1">T1</span></td>${lineRow.map(v => `<td>${v}</td>`).join('')}</tr>`,
+    `<tr><td>2026 统考名额 <span class="cred cred-t1">T1</span></td>${quotaRow.map(v => `<td>${v}</td>`).join('')}</tr>`,
+    `<tr><td>综合推荐度</td>${scored.map((x, i) => `<td ${bestCls(i === maxIdx(st))}>${stars(x.s.starsN)} (${x.s.starsN}/5)</td>`).join('')}</tr>`,
+  ];
+  document.getElementById('compareTable').innerHTML = `<thead>${head}</thead><tbody>${rows.join('')}</tbody>`;
+}
+// 主题切换 → 用缓存数据整页重绘（卡片内图表颜色跟随 CSS 变量）
+onThemeRedraw(() => { renderAll(); });
+
+// 单栏 / 双栏视图切换（记忆偏好）
+let viewMode = localStorage.getItem('gy_cardview') || 'single';
+function applyView() {
+  const grid = document.getElementById('cardGrid');
+  if (!grid) return;
+  grid.classList.toggle('two', viewMode === 'double');
+  const btn = document.getElementById('viewToggle');
+  if (btn) btn.textContent = viewMode === 'double' ? '单栏视图' : '双栏视图';
+  // 等待布局稳定后触发 ECharts resize
+  setTimeout(() => {
+    void grid.offsetWidth; // 强制 reflow
+    window.dispatchEvent(new Event('resize'));
+  }, 150);
+}
+function toggleView() {
+  viewMode = viewMode === 'double' ? 'single' : 'double';
+  localStorage.setItem('gy_cardview', viewMode);
+  applyView();
+}
+
+// 主题切换后重载，图表随主题取色
+
+function removePair(i) {
+  const view = window.__viewPairs || [];
+  const p = view[i];
+  if (p && window.__targetPair && p.school === window.__targetPair.school && (p.major || '') === (window.__targetPair.major || '')) {
+    toast('这是个人主页设置的目标院校，请在个人主页更换', 'err');
+    return;
+  }
+  // 视图第 0 位可能是目标虚拟卡：按 key 在存储列表中定位后再删
+  const pairs = loadPairs();
+  const key = `${p?.school || ''}|${p?.major || ''}`;
+  const at = pairs.findIndex(x => `${x.school}|${x.major || ''}` === key);
+  if (at < 0) return;
+  pairs.splice(at, 1);
+  savePairs(pairs);
+  renderAll();
+}
+
+async function setTarget(idx) {
+  const pair = (window.__viewPairs || [])[idx];
+  if (!pair) return;
+  try {
+    const current = await api('/profile/exam-prep');
+    await api('/profile/exam-prep', {
+      method: 'PUT',
+      body: {
+        target_school: pair.school,
+        target_major: pair.major || '',
+        exam_date: current.exam_date || '',
+        daily_plan_minutes: current.daily_plan_minutes || 180,
+        subjects: current.subjects || [],
+      }
+    });
+    window.__targetPair = { school: pair.school, major: pair.major || '' };
+    toast(`已将「${pair.school}${pair.major ? ' · ' + pair.major : ''}」设为目标院校`);
+    renderAll();
+  } catch (e) {
+    toast('设置失败，请重试', 'err');
+  }
+}
+
+async function addPair() {
+  const school = document.getElementById('schoolInput').value.trim();
+  const major = document.getElementById('majorInput').value.trim();
+  if (!school) { toast('请填写院校名', 'err'); return; }
+  const pairs = loadPairs();
+  if (pairs.some(p => p.school === school && p.major === major)) { toast('该组合已在列表中'); return; }
+  pairs.push({ school, major });
+  savePairs(pairs);
+  document.getElementById('schoolInput').value = '';
+  document.getElementById('majorInput').value = '';
+  renderAll();
+}
+
+function genReportFromCards() {
+  const cands = window.__viewPairs || loadPairs();
+  if (!cands.length) { toast('先添加候选院校', 'err'); return; }
+  location.href = 'report.html?gen=1';
+}
+
+// 初始化：迁移历史数据里的专业代码为名称；空列表时用 watchlist
+setupDragSort();
+(async () => {
+  const pairs = loadPairs();
+  let migrated = false;
+  for (const p of pairs) {
+    if (p.major && /^\d{4,6}$/.test(p.major)) {
+      p.major = await majorName(p.major) || p.major;
+      migrated = true;
+    }
+  }
+  if (!pairs.length) {
+    try {
+      const watch = await api('/watchlist');
+      const init = (watch.items || []).map(w => ({ school: w.school_name, major: w.major_code || '' }));
+      for (const p of init) { if (p.major) p.major = await majorName(p.major); }
+      if (init.length) { pairs.push(...init); }
+      else pairs.push({ school: '清华', major: '计算机' }, { school: '中科大', major: '计算机' });
+      migrated = true;
+    } catch (e) { /* ignore */ }
+  }
+  if (migrated) savePairs(pairs);
+  renderAll();
+  applyView();
+})();
+</script>
+</body>
+</html>
