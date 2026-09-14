@@ -463,7 +463,13 @@
       return jsonResponse({ series: genHeatOverview(days) });
     }
     if (path === '/api/macro/heat-map') {
-      return jsonResponse(genHeatMap());
+      return jsonResponse({
+        provinces: genHeatMap().map(p => ({
+          province: p.province,
+          discussion_count: p.post_count,
+          avg_sentiment: p.avg_sentiment,
+        })),
+      });
     }
     if (path === '/api/macro/cross-discipline-flow') {
       const limit = parseInt(getParam(fullUrl, 'limit')) || 30;
@@ -484,7 +490,7 @@
       majors.forEach(m => {
         series[m] = data.map(d => ({
           month: d.month,
-          value: +(d.positive_ratio - d.negative_ratio + 0.5 + Math.random() * 0.2).toFixed(3),
+          sentiment_score: +(d.positive_ratio - d.negative_ratio + 0.5 + Math.random() * 0.2).toFixed(3),
         }));
       });
       return jsonResponse({ series });
