@@ -15,7 +15,6 @@
   .icon-svg-sm { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   .header {
-    margin-left: 56px;
     background: rgba(var(--line-rgb), 0.06);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -43,7 +42,7 @@
     color: rgba(var(--brand-rgb), 0.95);
   }
 
-  .container { max-width: 1200px; padding: 24px 32px 60px; margin-right: auto; margin-left: max(84px, calc((100% - 1200px) / 2 + 28px)); }
+  .container { max-width: 1200px; padding: 24px 32px 60px; margin-left: 56px; margin-right: auto; }
 
   .page-title {
     font-family: ui-serif, Georgia, "Noto Serif SC", serif;
@@ -247,8 +246,8 @@
 
   @media (max-width: 900px) {
     .metrics { grid-template-columns: 1fr 1fr; }
-    .container { padding: 16px 14px calc(76px + env(safe-area-inset-bottom, 0px)); margin-left: 0 !important; margin-right: 0 !important; }
-    .header { margin-left: 0; position: sticky; top: 0; backdrop-filter: blur(16px); z-index: 30; }
+    .container { padding: 16px 14px calc(76px + env(safe-area-inset-bottom, 0px)); max-width: 100% !important; }
+    .page-header { padding: 14px 16px !important; }
     .header-actions { gap: 5px; }
     .header-actions .gy-btn { padding: 6px 10px; font-size: 11.5px; }
     .compare-section .compare-table { display: block; overflow-x: auto; white-space: nowrap; border-radius: 1rem; }

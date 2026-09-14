@@ -325,11 +325,11 @@
 
   // Notifications
   const MOCK_NOTIFICATIONS = [
-    { id: 1, type: 'heat_alert', title: '关注院校热度变化', body: '华中科技大学·电子信息 MHI 上升42%，超过你设定的20%阈值', read: false, created_at: new Date(Date.now() - 3600000).toISOString() },
-    { id: 2, type: 'report_ready', title: '报告生成完成', body: '浙江大学·计算机科学与技术 舆情分析报告已生成', read: false, created_at: new Date(Date.now() - 86400000).toISOString() },
-    { id: 3, type: 'policy', title: '政策提醒', body: '2026年考研预报名即将开始（9月24日-27日），请提前确认报考信息', read: true, created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
-    { id: 4, type: 'achievement', title: '获得新成就', body: '恭喜获得「百日冲刺」徽章！累计学习100天', read: true, created_at: new Date(Date.now() - 86400000 * 5).toISOString() },
-    { id: 5, type: 'system', title: '系统通知', body: '研屿 v0.2.0 已更新：新增搜索BYOK、多Key管理等功能', read: true, created_at: new Date(Date.now() - 86400000 * 7).toISOString() },
+    { id: 1, type: 'heat_change', title: '关注院校热度变化', body: '华中科技大学·电子信息 MHI 上升42%，超过你设定的20%阈值', content: '华中科技大学·电子信息 MHI 上升42%，超过你设定的20%阈值', read: false, is_read: false, created_at: new Date(Date.now() - 3600000).toISOString() },
+    { id: 2, type: 'heat_change', title: '报告生成完成', body: '浙江大学·计算机科学与技术 舆情分析报告已生成', content: '浙江大学·计算机科学与技术 舆情分析报告已生成', read: false, is_read: false, created_at: new Date(Date.now() - 86400000).toISOString() },
+    { id: 3, type: 'policy', title: '政策提醒', body: '2026年考研预报名即将开始（9月24日-27日），请提前确认报考信息', content: '2026年考研预报名即将开始（9月24日-27日），请提前确认报考信息', read: true, is_read: true, created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
+    { id: 4, type: 'deadline', title: '获得新成就', body: '恭喜获得「百日冲刺」徽章！累计学习100天', content: '恭喜获得「百日冲刺」徽章！累计学习100天', read: true, is_read: true, created_at: new Date(Date.now() - 86400000 * 5).toISOString() },
+    { id: 5, type: 'reminder', title: '系统通知', body: '研屿 v0.2.0 已更新：新增搜索BYOK、多Key管理等功能', content: '研屿 v0.2.0 已更新：新增搜索BYOK、多Key管理等功能', read: true, is_read: true, created_at: new Date(Date.now() - 86400000 * 7).toISOString() },
   ];
 
   // Study scenes
@@ -368,7 +368,12 @@
     },
     quotas: {
       exhausted: 89,
-      usage: { report: 0.72, chat: 0.65, study: 0.58, template: 0.31 },
+      usage: {
+        report: { used: 7200, limit: 10000 },
+        chat: { used: 18500, limit: 30000 },
+        study: { used: 12800, limit: 20000 },
+        template: { used: 3100, limit: 10000 },
+      },
     },
     codes: { uses_left: 4520, redeemed_uses: 1893 },
     custom_scenes: 234,
@@ -383,6 +388,8 @@
       reports_generated: Math.floor(50 + Math.random() * 100),
       conversations: Math.floor(200 + Math.random() * 300),
       api_calls: Math.floor(2000 + Math.random() * 3000),
+      runs: Math.floor(100 + Math.random() * 200),
+      tokens: Math.floor(200000 + Math.random() * 300000),
     };
   });
 
@@ -492,6 +499,23 @@
     }
 
     // ── Schools & Majors (public) ──
+    if (path.startsWith('/api/schools/') && !path.includes('?')) {
+      const code = path.split('/api/schools/')[1];
+      const school = SCHOOLS.find(s => s.code === code) || SCHOOLS[0];
+      return jsonResponse({
+        ...school,
+        intro: school.name + '是位于' + school.province + '市' + school.city + '的' + school.tier + '高校，拥有多个A+学科。',
+        majors: MAJORS.slice(0, 8).map(m => ({ ...m })),
+      });
+    }
+    if (path.startsWith('/api/majors/') && !path.includes('?')) {
+      const code = path.split('/api/majors/')[1];
+      const major = MAJORS.find(m => m.code === code) || MAJORS[0];
+      return jsonResponse({
+        ...major,
+        schools: SCHOOLS.filter(s => s.tier === '985').slice(0, 10).map(s => ({ code: s.code, name: s.name, tier: s.tier, province: s.province })),
+      });
+    }
     if (path === '/api/schools') {
       const tier = getParam(fullUrl, 'tier');
       let filtered = SCHOOLS;
@@ -539,28 +563,113 @@
     }
 
     // ── Profile ──
-    if (path === '/api/profile/me' || path === '/api/profile/exam-prep') {
-      return jsonResponse(MOCK_PROFILE.exam_prep);
+    if (path === '/api/profile/me') {
+      return jsonResponse({
+        ...DEMO_USER,
+        background: {
+          school_tier: '985',
+          major: '计算机科学与技术',
+          gpa_rank: 'top20%',
+          is_cross_discipline: false,
+        },
+        risk_preference: 'balanced',
+        priorities: ['学科实力', '就业去向', '城市区位'],
+        hard_constraints: ['不考虑西北地区'],
+        anxiety_points: '担心推免比例继续扩大',
+        target_school: '浙江大学',
+        target_major: '计算机科学与技术',
+        exam_year: 2026,
+      });
+    }
+    if (path === '/api/profile/exam-prep') {
+      if (method === 'PUT') return jsonResponse({ ok: true });
+      return jsonResponse({
+        target_school: '浙江大学',
+        target_major: '计算机科学与技术',
+        target_school_code: '10335',
+        target_major_code: '0812',
+        exam_year: 2026,
+        exam_date: '2025-12-21',
+        countdown_days: 97,
+        prep_start: '2025-03-01',
+        current_stage: '强化复习',
+        daily_study_hours: 6.5,
+        daily_plan_minutes: 480,
+        plan_confirmed_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+        total_study_days: 128,
+        subjects: [
+          { code: 'math', name: '数学', plan_minutes: 180 },
+          { code: 'english', name: '英语', plan_minutes: 120 },
+          { code: 'cs', name: '专业课', plan_minutes: 150 },
+          { code: 'politics', name: '政治', plan_minutes: 90 },
+        ],
+      });
     }
     if (path === '/api/profile/tags') {
-      if (method === 'POST' || method === 'PUT') return jsonResponse(MOCK_PROFILE.tags);
-      return jsonResponse(MOCK_PROFILE.tags);
+      if (method === 'POST') return jsonResponse({ added: 1 });
+      if (method === 'PUT') return jsonResponse({ ok: true });
+      return jsonResponse({
+        persona_tags: MOCK_PROFILE.tags.persona_tags,
+        groups: {
+          '背景': [
+            { id: 'tag-1', label: '985本科' },
+            { id: 'tag-2', label: '计算机专业' },
+          ],
+          '偏好': [
+            { id: 'tag-3', label: '目标浙大' },
+            { id: 'tag-4', label: '偏好南方城市' },
+          ],
+          '关注': [
+            { id: 'tag-5', label: '关注就业' },
+            { id: 'tag-6', label: '初试优先' },
+          ],
+        },
+      });
     }
     if (path === '/api/profile/tags/from-dialog' || path === '/api/profile/tags/from-profile') {
+      if (method === 'POST') return jsonResponse({ added: 2 });
       return jsonResponse(MOCK_PROFILE.tags.persona_tags.filter(t => t.source === path.split('/').pop()));
     }
     if (path === '/api/profile/tags/reset') {
-      return jsonResponse({ ok: true });
+      return jsonResponse({ removed: 3 });
     }
     if (path === '/api/profile/achievements') {
-      return jsonResponse(MOCK_PROFILE.achievements);
+      return jsonResponse({
+        badges: MOCK_PROFILE.achievements.badges,
+        items: [
+          { type: 'streak', label: '连续学习', value: '42天' },
+          { type: 'total', label: '累计学习', value: '832小时' },
+          { type: 'reports', label: '生成报告', value: '5份' },
+          { type: 'schools', label: '分析院校', value: '12所' },
+        ],
+      });
     }
     if (path === '/api/profile/study-summary') {
-      return jsonResponse(MOCK_PROFILE.study_summary);
+      return jsonResponse({
+        ...MOCK_PROFILE.study_summary,
+        subjects: [
+          { subject: '数学', minutes: 15600, color: '#6366f1' },
+          { subject: '英语', minutes: 10200, color: '#22c55e' },
+          { subject: '专业课', minutes: 14400, color: '#f59e0b' },
+          { subject: '政治', minutes: 9720, color: '#ef4444' },
+        ],
+        calendar: Array.from({ length: 30 }, (_, i) => {
+          const d = new Date(); d.setDate(d.getDate() - (29 - i));
+          return { date: d.toISOString().slice(0, 10), minutes: Math.floor(120 + Math.random() * 360) };
+        }),
+      });
     }
     if (path === '/api/profile/today-tasks') {
       if (method === 'PUT' || method === 'POST') return jsonResponse({ ok: true });
-      return jsonResponse(MOCK_PROFILE.today_tasks);
+      return jsonResponse({
+        items: MOCK_PROFILE.today_tasks.items,
+        confirmed: true,
+        tasks: [
+          { subject: '数学', remaining_minutes: 90 },
+          { subject: '英语', remaining_minutes: 60 },
+          { subject: '专业课', remaining_minutes: 120 },
+        ],
+      });
     }
     if (path === '/api/profile/plan/confirm') {
       return jsonResponse({ ok: true });
@@ -581,19 +690,32 @@
     // ── Metrics ──
     if (path.startsWith('/api/metrics/overview')) {
       const school = getParam(fullUrl, 'school') || '清华大学';
+      const major = getParam(fullUrl, 'major') || '计算机科学与技术';
       return jsonResponse({
         school_name: school,
-        major_name: '计算机科学与技术',
-        heat: { mhi: 72, mom_growth: 0.35, discussion: 1280, l2: 85, l3: 68 },
+        major_name: major,
+        heat: { mhi: 72, mom_growth: 0.35, discussion: 1280, l2: 85, l3: 68, school: school, major: major, sample_post_count: 3420, self_fulfilling_signal: 'heating_up', error: null, detail: '热度数据基于多平台讨论量加权计算', computed_at: new Date().toISOString() },
         discouragement: { discouragement_index: 0.18, sample_size: 340 },
         baoyan_pressure: { baoyan_pressure: 0.32, baoyan_ratio: 0.28 },
         info_gap: { info_gap: 0.15, discipline_evaluation: 'A+' },
-        trend_prediction: { direction: 'rising', confidence: 0.78 },
+        trend_prediction: { direction: 'rising', confidence: 0.78, momentum_7d_vs_prev7d: 0.25, momentum_30d_vs_prev30d: 0.18, rationale: '近7日讨论量较前7日上升25%，报名季临近推动热度持续走高' },
+        initial_vs_reexam: { initial_discussion: 8500, reexam_discussion: 4200, reexam_heavier: false },
+        enrollment: { series: [
+          { year: 2023, planned: 85, exemption: 45 },
+          { year: 2024, planned: 80, exemption: 48 },
+          { year: 2025, planned: 75, exemption: 50 },
+        ]},
+        score_lines: { series: [
+          { year: 2023, total: 365 },
+          { year: 2024, total: 375 },
+          { year: 2025, total: 385 },
+        ]},
         recent_posts: { posts: [
           { snippet: '今年清华计算机考研分数线可能会继续上涨，建议提前准备', platform: 'zhihu', created_at: '2026-09-13' },
           { snippet: '清华计算机推免比例越来越高，统考名额堪忧', platform: 'xiaohongshu', created_at: '2026-09-12' },
+          { snippet: '分享备考经验：数学一复习全流程', platform: 'tieba', created_at: '2026-09-11' },
         ]},
-        self_fulfilling_signal: null,
+        self_fulfilling_signal: 'heating_up',
       });
     }
     if (path.startsWith('/api/metrics/info-gap')) {
@@ -604,7 +726,29 @@
     if (path === '/api/agent/conversations') {
       if (method === 'DELETE') return jsonResponse({ cleared: MOCK_CONVERSATIONS.agent.length + MOCK_CONVERSATIONS.study.length });
       const chatType = getParam(fullUrl, 'chat_type') || 'agent';
-      return jsonResponse({ items: MOCK_CONVERSATIONS[chatType] || [] });
+      const items = (MOCK_CONVERSATIONS[chatType] || []).map(c => ({ ...c, debate_enabled: true }));
+      return jsonResponse({ items });
+    }
+    if (path.startsWith('/api/agent/conversations/')) {
+      const convId = path.split('/api/agent/conversations/')[1];
+      const allConvs = [...MOCK_CONVERSATIONS.agent, ...MOCK_CONVERSATIONS.study];
+      const conv = allConvs.find(c => c.id === convId) || MOCK_CONVERSATIONS.agent[0];
+      return jsonResponse({
+        ...conv,
+        debate_enabled: true,
+        messages: conv.messages.map(m => ({
+          ...m,
+          trace: m.role === 'agent' ? [
+            { phase: 'plan', title: '分析框架', detail: '1. 竞争格局分析 → 2. 舆情信号解读 → 3. 个性化建议' },
+            { phase: 'tool', title: '查询热度数据', detail: { tool: 'metrics_lookup', reasoning: '获取目标院校最新MHI数据' } },
+            { phase: 'tool_result', title: '热度数据返回', detail: 'MHI=72, 环比+35%, 样本量3420' },
+            { phase: 'debate', title: '多Agent讨论', detail: 'Agent-A: 热度上升信号明确; Agent-B: 需警惕推免挤压风险; 共识: 建议关注但不盲目' },
+          ] : [],
+          cards: m.role === 'agent' ? [
+            { school: conv.messages[0]?.content?.includes('浙大') ? '浙江大学' : '华中科技大学', major: '计算机科学与技术', heat: 72, mom_growth: 0.35, discouragement: 0.18, trend: 'rising', confidence: '高' },
+          ] : [],
+        })),
+      });
     }
     if (path === '/api/agent/chat/blocking') {
       return jsonResponse({
@@ -617,40 +761,98 @@
     // ── Reports ──
     if (path === '/api/reports') {
       if (method === 'POST') return jsonResponse({ ok: true });
-      return jsonResponse({ items: MOCK_REPORTS });
+      return jsonResponse({ items: MOCK_REPORTS.map(r => ({ ...r, candidates: [r.school + '·' + r.major] })) });
     }
     if (path === '/api/reports/generate') {
-      return jsonResponse({
-        id: 'rpt-new-' + Date.now(),
-        status: 'completed',
-        report: MOCK_REPORTS[0],
-      });
+      const newId = 'rpt-new-' + Date.now();
+      return jsonResponse({ id: newId, status: 'completed', report: { ...MOCK_REPORTS[0], id: newId } });
     }
     if (path.startsWith('/api/reports/')) {
       const id = path.split('/api/reports/')[1];
-      if (id.endsWith('/share')) return jsonResponse({ share_url: 'https://yanguan.isle/r/' + id });
+      if (id.endsWith('/share')) return jsonResponse({ share_url: '/api/reports/' + id.replace('/share', '') + '/shared' });
       if (method === 'DELETE') return jsonResponse({ ok: true });
-      return jsonResponse(MOCK_REPORTS[0] || { id, title: '考研择校深度分析报告', status: 'completed' });
+      if (method === 'POST') return jsonResponse({ share_url: '/shared/' + id });
+      const base = MOCK_REPORTS.find(r => r.id === id) || MOCK_REPORTS[0];
+      return jsonResponse({
+        id: base?.id || id,
+        title: base?.title || '考研择校深度分析报告',
+        school: base?.school || '浙江大学',
+        major: base?.major || '计算机科学与技术',
+        created_at: base?.generated_at || new Date().toISOString(),
+        generated_at: base?.generated_at || new Date().toISOString(),
+        status: 'completed',
+        content: {
+          candidates: [{
+            input: { school: base?.school || '浙江大学', major: base?.major || '计算机科学与技术' },
+            heat: { school: base?.school || '浙江大学', major: base?.major || '计算机科学与技术', mhi: 72, mom_growth: 0.35, self_fulfilling_signal: 'heating_up' },
+            discouragement: { discouragement_index: 0.18 },
+            baoyan: { baoyan_pressure: 0.32 },
+            info_gap: { info_gap: 0.15, discipline_evaluation: 'A+' },
+            initial_vs_reexam: { initial_discussion: 8500, reexam_discussion: 4200 },
+            enrollment: { series: [
+              { year: 2023, planned: 85, exemption: 45 },
+              { year: 2024, planned: 80, exemption: 48 },
+              { year: 2025, planned: 75, exemption: 50 },
+            ]},
+            score_lines: { series: [
+              { year: 2023, total: 365 },
+              { year: 2024, total: 375 },
+              { year: 2025, total: 385 },
+            ]},
+            sentiment: { distribution: { anxious: { ratio: 0.17 }, optimistic: { ratio: 0.38 }, neutral: { ratio: 0.45 }, discouraging: { ratio: 0.08 } } },
+            posts: { posts: [
+              { snippet: '今年分数线可能会继续上涨', platform: 'zhihu' },
+              { snippet: '推免比例越来越高', platform: 'xiaohongshu' },
+            ]},
+            advisor: { by_direction: [
+              { direction: '学术型', mentions: 245, negative_ratio: 0.15 },
+              { direction: '专业型', mentions: 380, negative_ratio: 0.22 },
+            ]},
+            predict_score: { predicted_interval: [375, 395], adjustment: { value: 5 }, trend_slope_per_year: 8.5 },
+            predict_heat: { direction: 'rising', momentum_7d_vs_prev7d: 0.25, momentum_30d_vs_prev30d: 0.18, rationale: '报名季临近，热度持续走高' },
+          }],
+          profile: {
+            background: { school_tier: '985', major: '计算机科学与技术', gpa_rank: 'top20%' },
+            motivation: '提升学历，进入头部高校研究平台',
+            risk_preference: 'balanced',
+            priorities: ['学科实力', '就业去向', '城市区位'],
+            hard_constraints: ['不考虑西北地区'],
+            anxiety_points: '担心推免比例继续扩大',
+            inferred_profile: {
+              decision_style: '数据驱动型',
+              key_dimensions: ['热度趋势', '信息差', '报录比'],
+              sensitive_signals: ['推免比例变化', '复试线波动'],
+            },
+          },
+          stage: { stage_name: '强化冲刺期' },
+          disclaimer: '以上数据基于公开平台讨论内容分析，仅供参考，不代表官方统计数据。建议结合招生简章等官方信息综合判断。',
+        },
+        content_markdown: '## Agent 综合分析\n\n### 整体评估\n浙江大学计算机科学与技术学科评估A+，是国内Top 3级别的计算机学科。当前MHI热度指数72分，环比上升35%。\n\n### 核心发现\n1. **推免挤压**：推免占比约55%，统考名额60-70人\n2. **热度趋势**：近7日动量+25%，预计10月报名期间达峰值\n3. **信息差**：+0.15，讨论热度与学科实力基本匹配\n4. **情绪分布**：正面38%，中性45%，负面17%\n\n### 建议\n- 以浙大CS为主目标，同步准备南大软院作为保底\n- 数学和专业课是核心拉分项\n- 关注9月招生简章推免比例变化',
+      });
     }
 
     // ── Sentiment ──
     if (path.startsWith('/api/sentiment/cross-platform')) {
       return jsonResponse({
         platforms: [
-          { name: '知乎', post_count: 1243, sentiment_score: 0.62, top_keywords: ['推免', '分数线', '复试'] },
-          { name: '贴吧', post_count: 876, sentiment_score: 0.55, top_keywords: ['卷', '保研', '统考'] },
-          { name: '小红书', post_count: 654, sentiment_score: 0.71, top_keywords: ['性价比', '就业', '城市'] },
-          { name: 'B站', post_count: 321, sentiment_score: 0.68, top_keywords: ['经验贴', '复习', '规划'] },
+          { name: '知乎', platform: 'zhihu', posts: 1243, post_count: 1243, sentiment_score: 0.62, top_keywords: ['推免', '分数线', '复试'] },
+          { name: '贴吧', platform: 'tieba', posts: 876, post_count: 876, sentiment_score: 0.55, top_keywords: ['卷', '保研', '统考'] },
+          { name: '小红书', platform: 'xiaohongshu', posts: 654, post_count: 654, sentiment_score: 0.71, top_keywords: ['性价比', '就业', '城市'] },
+          { name: 'B站', platform: 'bilibili', posts: 321, post_count: 321, sentiment_score: 0.68, top_keywords: ['经验贴', '复习', '规划'] },
         ],
       });
     }
     if (path.startsWith('/api/sentiment/trending-topics')) {
       return jsonResponse({
         topics: [
-          { topic: '推免比例上涨', heat: 0.85, trend: 'rising' },
-          { topic: '复试线预测', heat: 0.72, trend: 'stable' },
-          { topic: '就业去向', heat: 0.65, trend: 'rising' },
-          { topic: '导师评价', heat: 0.58, trend: 'falling' },
+          { topic: '推免比例上涨', keyword: '推免比例上涨', heat: 0.85, trend: 'rising' },
+          { topic: '复试线预测', keyword: '复试线预测', heat: 0.72, trend: 'stable' },
+          { topic: '就业去向', keyword: '就业去向', heat: 0.65, trend: 'rising' },
+          { topic: '导师评价', keyword: '导师评价', heat: 0.58, trend: 'falling' },
+          { topic: '跨考经验', keyword: '跨考经验', heat: 0.52, trend: 'rising' },
+          { topic: '保研名额', keyword: '保研名额', heat: 0.48, trend: 'stable' },
+          { topic: '调剂信息', keyword: '调剂信息', heat: 0.42, trend: 'falling' },
+          { topic: '真题分享', keyword: '真题分享', heat: 0.38, trend: 'rising' },
         ],
       });
     }
@@ -661,6 +863,27 @@
         employment_rate: 0.94,
         top_industries: ['互联网', '金融', '制造业', '教育'],
         sentiment_score: 0.72,
+        series: {
+          '计算机科学与技术': [
+            { sentiment_score: 0.72, month: '2025-04' },
+            { sentiment_score: 0.68, month: '2025-06' },
+            { sentiment_score: 0.71, month: '2025-08' },
+            { sentiment_score: 0.75, month: '2025-10' },
+            { sentiment_score: 0.73, month: '2025-12' },
+          ],
+        },
+      });
+    }
+    if (path.startsWith('/api/sentiment/posts')) {
+      return jsonResponse({
+        posts: [
+          { platform: 'zhihu', published_at: new Date(Date.now() - 3600000).toISOString(), sentiment: 'neutral', snippet: '今年考研竞争依然激烈，建议大家做好充分准备' },
+          { platform: 'xiaohongshu', published_at: new Date(Date.now() - 7200000).toISOString(), sentiment: 'positive', snippet: '分享我的备考经验，坚持就是胜利！' },
+          { platform: 'tieba', published_at: new Date(Date.now() - 10800000).toISOString(), sentiment: 'negative', snippet: '报录比太高了，有点劝退...' },
+          { platform: 'zhihu', published_at: new Date(Date.now() - 86400000).toISOString(), sentiment: 'neutral', snippet: '关于择校的一些思考和建议' },
+          { platform: 'bilibili', published_at: new Date(Date.now() - 86400000 * 2).toISOString(), sentiment: 'positive', snippet: '考研复习vlog｜今天效率不错' },
+          { platform: 'xiaohongshu', published_at: new Date(Date.now() - 86400000 * 3).toISOString(), sentiment: 'neutral', snippet: '整理了各科复习时间线，供参考' },
+        ],
       });
     }
 
@@ -672,6 +895,7 @@
       return jsonResponse({ items });
     }
     if (path === '/api/notifications/read') {
+      if (method === 'POST') return jsonResponse({ marked: MOCK_NOTIFICATIONS.filter(n => !n.read).length });
       return jsonResponse({ ok: true });
     }
 
@@ -760,10 +984,25 @@
 
     // ── Study Room ──
     if (path === '/api/study/scenes') {
-      return jsonResponse({ items: MOCK_SCENES });
+      if (method === 'POST') return jsonResponse({ id: 'custom-' + Date.now(), name: '自定义场景', status: 'pending' });
+      return jsonResponse({
+        items: MOCK_SCENES.map(s => ({
+          ...s,
+          tagline: s.description,
+          channels: ['nature', 'ambient'],
+          status: 'approved',
+          visibility: 'public',
+        })),
+        template_quota: { limit: 5, used: 2 },
+      });
     }
     if (path === '/api/study/scenes/community') {
-      return jsonResponse({ items: [] });
+      return jsonResponse({
+        items: [
+          { id: 'comm-1', name: '海边日落', tagline: '海浪轻拍沙滩，夕阳染红天际', channels: ['ocean', 'waves'], image_url: 'assets/scenes/ocean-cove.jpg', author: 'user3', status: 'approved', visibility: 'public' },
+          { id: 'comm-2', name: '山间溪流', tagline: '清澈溪水潺潺，鸟鸣声声', channels: ['stream', 'birds'], image_url: 'assets/scenes/misty-hills.jpg', author: 'user5', status: 'approved', visibility: 'public' },
+        ],
+      });
     }
     if (path === '/api/study/chat') {
       return jsonResponse({
@@ -790,51 +1029,145 @@
           last_active: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString(),
         })),
         total: 12847,
-        by_scene: { report: 8934, chat: 23456, study: 15678, template: 3421 },
-      });
-    }
-    if (path === '/api/admin/channels') {
-      return jsonResponse({
-        items: [
-          { id: 'ch-1', name: '知乎考研话题', platform: 'zhihu', status: 'active', last_crawl: new Date().toISOString(), posts_total: 45230 },
-          { id: 'ch-2', name: '贴吧考研吧', platform: 'tieba', status: 'active', last_crawl: new Date().toISOString(), posts_total: 89120 },
-          { id: 'ch-3', name: '小红书考研tag', platform: 'xhs', status: 'active', last_crawl: new Date().toISOString(), posts_total: 34560 },
-          { id: 'ch-4', name: 'B站考研UP主', platform: 'bili', status: 'active', last_crawl: new Date().toISOString(), posts_total: 12890 },
+        by_scene: [
+          { scene: 'report', source: 'llm', calls: 8934, tokens: 4500000 },
+          { scene: 'chat', source: 'llm', calls: 23456, tokens: 12000000 },
+          { scene: 'study', source: 'llm', calls: 15678, tokens: 8000000 },
+          { scene: 'template', source: 'llm', calls: 3421, tokens: 1500000 },
         ],
       });
     }
-    if (path === '/api/admin/codes') {
+    if (path === '/api/admin/channels') {
+      if (method === 'POST') return jsonResponse({ id: 'ch-new', model: 'deepseek-chat' });
       return jsonResponse({
         items: [
-          { code: 'GY-DEMO-001', type: 'general', uses_remaining: 99, granted: { report: 3, chat: 10, study: 5 }, created_at: new Date().toISOString() },
-          { code: 'GY-VIP-2025', type: 'vip', uses_remaining: 50, granted: { report: 99, chat: 99, study: 99, template: 10, search: 99, crawl: 99 }, created_at: new Date().toISOString() },
+          { id: 'ch-1', label: 'DeepSeek 主通道', model: 'deepseek-chat', base_url: 'https://api.deepseek.com/v1', api_key: 'sk-****abcd', name: '知乎考研话题', platform: 'zhihu', status: 'active', last_crawl: new Date().toISOString(), posts_total: 45230 },
+          { id: 'ch-2', label: 'Qwen 备用通道', model: 'qwen-plus', base_url: 'https://dashscope.aliyuncs.com/v1', api_key: 'sk-****efgh', name: '贴吧考研吧', platform: 'tieba', status: 'active', last_crawl: new Date().toISOString(), posts_total: 89120 },
+        ],
+        active_id: 'ch-1',
+      });
+    }
+    if (path.startsWith('/api/admin/channels/') && path.endsWith('/activate')) {
+      return jsonResponse({ model: 'deepseek-chat' });
+    }
+    if (path.startsWith('/api/admin/channels/') && path.endsWith('/test')) {
+      return jsonResponse({ ok: true });
+    }
+    if (path.startsWith('/api/admin/channels/')) {
+      if (method === 'DELETE') return jsonResponse({ ok: true });
+      return jsonResponse({ ok: true });
+    }
+    if (path === '/api/admin/codes') {
+      if (method === 'POST') return jsonResponse({ codes: ['GY-' + Date.now().toString(36).toUpperCase()] });
+      return jsonResponse({
+        items: [
+          { code: 'GY-DEMO-001', report_add: 3, chat_add: 10, study_add: 5, template_add: 0, used_count: 12, max_uses: 100, note: '演示邀请码', created_at: new Date().toISOString() },
+          { code: 'GY-VIP-2025', report_add: 99, chat_add: 99, study_add: 99, template_add: 10, used_count: 45, max_uses: 200, note: 'VIP 全量额度', created_at: new Date(Date.now() - 86400000 * 3).toISOString() },
+          { code: 'GY-TRIAL-01', report_add: 1, chat_add: 3, study_add: 2, template_add: 0, used_count: 1, max_uses: 5, note: '试用码', created_at: new Date(Date.now() - 86400000 * 7).toISOString() },
         ],
       });
     }
     if (path === '/api/admin/llm-presets') {
-      return jsonResponse({ presets: { deepseek: { label: 'DeepSeek' }, qwen: { label: 'Qwen' }, zhipu: { label: 'GLM' } } });
+      if (method === 'PUT') return jsonResponse({ ok: true });
+      return jsonResponse({
+        items: [
+          { id: 'deepseek', label: 'DeepSeek', base_url: 'https://api.deepseek.com/v1', models: ['deepseek-chat', 'deepseek-reasoner'], model: 'deepseek-chat' },
+          { id: 'qwen', label: '通义千问 Qwen（百炼）', base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', models: ['qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen-flash'], model: 'qwen-plus' },
+          { id: 'zhipu', label: '智谱 GLM', base_url: 'https://open.bigmodel.cn/api/paas/v4', models: ['glm-4.7-flash', 'glm-4.7', 'glm-5', 'glm-5.3'], model: 'glm-4.7-flash' },
+          { id: 'custom', label: '自定义（OpenAI 兼容）', base_url: '', models: [], model: '' },
+        ],
+      });
     }
     if (path === '/api/admin/search-config') {
-      return jsonResponse({ config: { daily_free_search: 1, daily_free_crawl: 2 } });
+      if (method === 'PUT') return jsonResponse({ ok: true });
+      return jsonResponse({
+        bocha: { configured: true, key_masked: 'sk-****efgh', enabled: true },
+        tavily: { configured: false, key_masked: '', enabled: false },
+        queries_per_run: 5,
+        freshness: 24,
+        results_per_query: 10,
+      });
     }
     if (path === '/api/admin/data-inventory') {
       return jsonResponse({
-        total_posts: 1567890,
-        by_platform: { zhihu: 456000, tieba: 891000, xhs: 134000, bili: 86890 },
-        oldest_post: '2024-01-15', newest_post: new Date().toISOString().slice(0, 10),
+        posts: {
+          real: 1567890,
+          labeled: 892000,
+          span: ['2024-01-15', new Date().toISOString().slice(0, 10)],
+          demo: 1567890,
+          by_platform: [
+            { platform: 'zhihu', count: 456000 },
+            { platform: 'tieba', count: 891000 },
+            { platform: 'xhs', count: 134000 },
+            { platform: 'bili', count: 86890 },
+          ],
+        },
+        reference: { schools: SCHOOLS.length, majors: MAJORS.length, pairs: SCHOOLS.length * 5 },
+        official: { score_lines: 450, enrollments: 380 },
+        metrics: { daily_stats: 365, snapshots: 1200 },
+        storage_mb: 2456,
+        contributors: [
+          { username: 'user1', count: 45230 },
+          { username: 'user3', count: 38120 },
+          { username: 'user5', count: 21450 },
+        ],
       });
     }
     if (path === '/api/admin/platform-auths') {
       return jsonResponse({
         items: [
-          { user_id: 1, username: 'user1', platform: 'zhihu', status: 'active', last_used: new Date().toISOString() },
-          { user_id: 3, username: 'user3', platform: 'xhs', status: 'active', last_used: new Date().toISOString() },
-          { user_id: 5, username: 'user5', platform: 'tieba', status: 'expired', last_used: new Date(Date.now() - 86400000 * 3).toISOString() },
+          { user_id: 1, username: 'user1', platform: 'zhihu', status: 'active', cookie_masked: 'z_c0=****abcd', last_used_at: new Date(Date.now() - 3600000).toISOString(), updated_at: new Date().toISOString() },
+          { user_id: 3, username: 'user3', platform: 'xhs', status: 'active', cookie_masked: 'web_session=****efgh', last_used_at: new Date(Date.now() - 7200000).toISOString(), updated_at: new Date().toISOString() },
+          { user_id: 5, username: 'user5', platform: 'tieba', status: 'expired', cookie_masked: 'BDUSS=****ijkl', last_used_at: new Date(Date.now() - 86400000 * 3).toISOString(), updated_at: new Date(Date.now() - 86400000 * 3).toISOString() },
+          { user_id: 8, username: 'user8', platform: 'bili', status: 'active', cookie_masked: 'SESSDATA=****mnop', last_used_at: new Date(Date.now() - 1800000).toISOString(), updated_at: new Date().toISOString() },
         ],
       });
     }
     if (path === '/api/admin/role-audit') {
       return jsonResponse({ items: [] });
+    }
+    if (path === '/api/admin/users') {
+      const page = parseInt(getParam(fullUrl, 'page')) || 1;
+      const pageSize = 20;
+      const start = (page - 1) * pageSize;
+      return jsonResponse({
+        total: MOCK_USERS.length,
+        items: MOCK_USERS.slice(start, start + pageSize).map(u => ({
+          ...u,
+          byok: u.has_byok,
+          quota: {
+            report: { limit: 999, used: Math.floor(Math.random() * 10) },
+            chat: { limit: 999, used: Math.floor(Math.random() * 50) },
+            study: { limit: 999, used: Math.floor(Math.random() * 30) },
+            template: { limit: 999, used: Math.floor(Math.random() * 5) },
+          },
+        })),
+      });
+    }
+    if (path.startsWith('/api/admin/users/') && path.endsWith('/key')) {
+      const userId = path.split('/api/admin/users/')[1].split('/')[0];
+      const user = MOCK_USERS.find(u => u.id === parseInt(userId)) || MOCK_USERS[0];
+      return jsonResponse({ username: user.username, model: 'deepseek-chat', api_key: 'sk-****' + user.username.slice(-4) });
+    }
+    if (path.startsWith('/api/admin/users/') && path.endsWith('/quota')) {
+      if (method === 'POST' || method === 'PUT') return jsonResponse({ ok: true });
+      return jsonResponse({ report: { limit: 999, used: 3 }, chat: { limit: 999, used: 12 }, study: { limit: 999, used: 28 }, template: { limit: 999, used: 1 } });
+    }
+    if (path.startsWith('/api/admin/users/') && path.endsWith('/role')) {
+      if (method === 'POST') return jsonResponse({ ok: true });
+      return jsonResponse({ ok: true });
+    }
+    if (path.startsWith('/api/admin/users/')) {
+      return jsonResponse({ ok: true });
+    }
+    if (path === '/api/admin/scene-reviews') {
+      return jsonResponse({
+        items: [
+          { id: 'scene-r-1', name: '春日樱花林', image_url: 'assets/scenes/forest-cabin.jpg', status: 'pending', visibility: 'public', tagline: '樱花纷飞的林间小道', uploader: 'user3', created_at: new Date(Date.now() - 86400000 * 2).toISOString(), review_note: '', channels: ['nature', 'birds', 'stream'] },
+          { id: 'scene-r-2', name: '雨夜书房', image_url: 'assets/scenes/rainy-cafe.jpg', status: 'approved', visibility: 'public', tagline: '窗外雨声，桌上暖灯', uploader: 'user5', created_at: new Date(Date.now() - 86400000 * 5).toISOString(), review_note: '质量很好', channels: ['rain', 'indoor', 'ambient'] },
+          { id: 'scene-r-3', name: '星空帐篷', image_url: 'assets/scenes/snow-mountain.jpg', status: 'rejected', visibility: 'private', tagline: '高原星空下的露营', uploader: 'user8', created_at: new Date(Date.now() - 86400000 * 8).toISOString(), review_note: '图片分辨率不足', channels: ['nature', 'wind'] },
+        ],
+      });
     }
 
     // ── Fallback: unknown endpoint ──
