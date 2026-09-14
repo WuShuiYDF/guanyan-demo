@@ -142,28 +142,10 @@
   .chat-item:hover .chat-item-del { opacity: 1; }
   .chat-item-del:hover { color: rgba(230,120,100,0.85); background: rgba(230,120,100,0.1); }
 
-/* ── DEMO MODE Badge ── */
-.demo-badge {
-  position: fixed; bottom: 16px; right: 16px; z-index: 99999;
-  padding: 6px 14px; border-radius: 999px;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
-  color: #1a1a1a; background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
-  pointer-events: none; user-select: none;
-  animation: demoBadgePulse 3s ease-in-out infinite;
-}
-@keyframes demoBadgePulse {
-  0%, 100% { opacity: 0.85; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.04); }
-}
-@media (max-width: 767px) {
-  .demo-badge { bottom: 72px; right: 10px; font-size: 10px; padding: 5px 10px; }
-}
 
 </style>
 </head>
 <body>
-<div class="demo-badge">DEMO MODE</div>
 <div data-nav="agent-chat"></div>
 
 <div data-header></div>
