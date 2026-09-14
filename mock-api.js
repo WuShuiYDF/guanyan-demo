@@ -123,6 +123,7 @@
       d.setDate(d.getDate() - i);
       data.push({
         date: d.toISOString().slice(0, 10),
+        discussion: Math.floor(800 + Math.random() * 400),
         total_posts: Math.floor(800 + Math.random() * 400),
         unique_users: Math.floor(200 + Math.random() * 150),
         sentiment_pos: +(0.35 + Math.random() * 0.15).toFixed(3),
@@ -347,6 +348,10 @@
     return src.slice(0, limit).map((item, i) => ({
       ...item,
       rank: i + 1,
+      school_name: item.name,
+      major_name: item.name,
+      heat_l2: Math.floor(50 + Math.random() * 50),
+      heat_l3: Math.floor(40 + Math.random() * 60),
       post_count_7d: Math.floor(200 + Math.random() * 2000),
       sentiment_score: +(0.3 + Math.random() * 0.4).toFixed(3),
       growth_rate: +((Math.random() - 0.3) * 0.5).toFixed(3),
@@ -436,30 +441,54 @@
           { stage_name: '强化冲刺期', stage_key: 'intensive', start: '2025-09-01', end: '2025-11-30' },
           { stage_name: '考前调整期', stage_key: 'final', start: '2025-12-01', end: '2025-12-25' },
         ],
+        timeline: [
+          { month: 3, stage_name: '基础夯实期', description: '系统梳理各科基础知识，建立知识框架', focus: ['数学基础', '英语词汇', '专业课教材'] },
+          { month: 6, stage_name: '基础夯实期', description: '完成第一轮复习，开始真题训练', focus: ['真题演练', '错题整理'] },
+          { month: 7, stage_name: '暑期强化期', description: '集中强化训练，突破重难点', focus: ['强化课程', '专题训练'] },
+          { month: 9, stage_name: '强化冲刺期', description: '预报名开始，查漏补缺，模拟测试', focus: ['预报名', '模拟考试', '政治启动'] },
+          { month: 10, stage_name: '强化冲刺期', description: '正式报名，冲刺复习，调整心态', focus: ['正式报名', '冲刺复习'] },
+          { month: 12, stage_name: '考前调整期', description: '最后冲刺，调整作息，准备考试', focus: ['考前冲刺', '心态调整'] },
+        ],
       });
     }
     if (path === '/api/macro/heat-overview') {
       const days = parseInt(getParam(fullUrl, 'days')) || 14;
-      return jsonResponse(genHeatOverview(days));
+      return jsonResponse({ series: genHeatOverview(days) });
     }
     if (path === '/api/macro/heat-map') {
       return jsonResponse(genHeatMap());
     }
     if (path === '/api/macro/cross-discipline-flow') {
       const limit = parseInt(getParam(fullUrl, 'limit')) || 30;
-      return jsonResponse(genCrossDisciplineFlow(limit));
+      const flows = genCrossDisciplineFlow(limit);
+      return jsonResponse({
+        links: flows.map(f => ({
+          source: f.source_major,
+          target: f.target_major,
+          value: f.flow_count,
+        })),
+      });
     }
     if (path === '/api/macro/employment-sentiment') {
       const months = parseInt(getParam(fullUrl, 'months')) || 12;
-      return jsonResponse(genEmploymentSentiment(months));
+      const data = genEmploymentSentiment(months);
+      const majors = ['计算机科学与技术', '软件工程', '电子信息', '人工智能', '数据科学'];
+      const series = {};
+      majors.forEach(m => {
+        series[m] = data.map(d => ({
+          month: d.month,
+          value: +(d.positive_ratio - d.negative_ratio + 0.5 + Math.random() * 0.2).toFixed(3),
+        }));
+      });
+      return jsonResponse({ series });
     }
     if (path === '/api/macro/rankings/schools') {
       const limit = parseInt(getParam(fullUrl, 'limit')) || 10;
-      return jsonResponse(genRankings('schools', limit));
+      return jsonResponse({ items: genRankings('schools', limit) });
     }
     if (path === '/api/macro/rankings/majors') {
       const limit = parseInt(getParam(fullUrl, 'limit')) || 10;
-      return jsonResponse(genRankings('majors', limit));
+      return jsonResponse({ items: genRankings('majors', limit) });
     }
 
     // ── Schools & Majors (public) ──
@@ -491,6 +520,13 @@
         last_crawl: new Date(Date.now() - 3600000).toISOString(),
         freshness_hours: 1,
         sources_updated: ['zhihu', 'tieba', 'xhs'],
+        platforms: [
+          { platform: 'zhihu', state: 'fresh', hours_since: 0.5 },
+          { platform: 'tieba', state: 'fresh', hours_since: 1.2 },
+          { platform: 'xiaohongshu', state: 'fresh', hours_since: 2.1 },
+          { platform: 'bilibili', state: 'stale', hours_since: 26 },
+          { platform: 'weibo', state: 'fresh', hours_since: 3.5 },
+        ],
       });
     }
 
