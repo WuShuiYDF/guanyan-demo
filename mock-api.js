@@ -428,7 +428,7 @@
 
     // ── Auth endpoints ──
     if (path === '/api/auth/login') {
-      const body = JSON.parse(requestBody);
+      const body = JSON.parse(options.body || '{}');
       if (body.username === 'demo' && body.password === 'demo1234') {
         return jsonResponse({ access_token: 'demo-token-yanguan-2025', token_type: 'bearer' });
       }
