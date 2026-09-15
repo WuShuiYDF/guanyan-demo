@@ -262,11 +262,19 @@
   .rl-footer { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(var(--line-rgb),0.08); }
   .rl-footer .gen-submit { margin: 0; }
 
+  /* 工具栏按钮：图标 + 文字横排，图标微着色 */
+  .ph-btn.has-icon { gap: 6px; }
+  .ph-btn.has-icon svg {
+    width: 14px; height: 14px; flex-shrink: 0;
+    color: rgba(var(--brand-rgb),0.45); transition: color 0.2s;
+  }
+  .ph-btn.has-icon:hover svg { color: rgba(var(--brand-rgb),0.75); }
+
   /* 追问 Agent 主按钮：accent 渐变胶囊 + 气泡图标 */
   .ph-btn.primary {
-    gap: 6px; padding: 7px 16px; border: none; border-radius: 10px;
+    gap: 6px; padding: 7px 18px; border: none; border-radius: 10px;
     background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(0,0,0,0.10)), var(--accent, #0e6e63);
-    color: #fff; font-weight: 600; letter-spacing: 0.02em;
+    color: #fff; font-weight: 600; font-size: 12.5px; letter-spacing: 0.02em;
     box-shadow: 0 2px 10px rgba(0,0,0,0.12);
   }
   [data-theme="dark"] .ph-btn.primary { color: #0f1f1c; }
@@ -275,17 +283,16 @@
     color: #fff; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.16);
   }
   [data-theme="dark"] .ph-btn.primary:hover { color: #0f1f1c; }
-  .ph-btn.primary svg { width: 14px; height: 14px; }
+  .ph-btn.primary svg { width: 14px; height: 14px; color: inherit; }
 
   @media (max-width: 768px) {
-    .ph-btn.has-icon { padding: 8px 9px; }
+    .ph-btn.has-icon { padding: 7px; border-radius: 8px; }
     .ph-btn.has-icon .lbl { display: none; }
-    .ph-btn.has-icon svg { width: 15px; height: 15px; }
-    .ph-btn.primary { padding: 8px 12px; }
+    .ph-btn.has-icon svg { width: 16px; height: 16px; }
+    .ph-btn.primary { padding: 7px 12px; font-size: 12px; }
     .ph-btn.primary svg { display: none; }
     .report { padding: 20px 16px calc(90px + env(safe-area-inset-bottom, 0px)); margin-left: 0 !important; margin-right: 0 !important; max-width: none; }
     .page-header { position: sticky; top: 0; backdrop-filter: blur(16px); z-index: 30; }
-    .page-header .ph-actions .ph-btn:not(.primary) { padding: 6px 10px; font-size: 11.5px; }
     .data-table { display: block; overflow-x: auto; white-space: nowrap; }
     .gen-panel, .rl-panel { width: auto !important; max-width: none !important; margin: 0 10px !important; height: auto; max-height: calc(100dvh - 30px); align-self: flex-end; border-radius: 1.3rem 1.3rem 0 0 !important; }
   }
