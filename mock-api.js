@@ -428,7 +428,11 @@
 
     // ── Auth endpoints ──
     if (path === '/api/auth/login') {
-      return jsonResponse({ access_token: 'demo-token-yanguan-2025', token_type: 'bearer' });
+      const body = JSON.parse(requestBody);
+      if (body.username === 'demo' && body.password === 'demo1234') {
+        return jsonResponse({ access_token: 'demo-token-yanguan-2025', token_type: 'bearer' });
+      }
+      return jsonResponse({ detail: '用户名或密码错误' }, 401);
     }
     if (path === '/api/auth/register') {
       return jsonResponse({ access_token: 'demo-token-yanguan-2025', token_type: 'bearer' });
@@ -1199,9 +1203,6 @@
     // Pass through non-API requests (assets, geo JSON, etc.)
     return originalFetch.apply(this, arguments);
   };
-
-  // ── Auto-set demo token on load ──────────────────────────────────────
-  localStorage.setItem('gy_token', 'demo-token-yanguan-2025');
 
   // Suppress onboarding modals in demo mode
   localStorage.setItem('gy_model_onboard', 'done');
